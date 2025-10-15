@@ -1,0 +1,134 @@
+/* list-consommation.component.css - VERSION FINALE */
+
+body.fullscreen-active .modal {
+  z-index: 10050 !important;
+}
+
+body.fullscreen-active .modal-backdrop {
+  z-index: 10040 !important;
+}
+
+.fullscreen-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.fullscreen-backdrop.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.badge-large {
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+.badge-received { background-color: #007bff; color: white; }
+.badge-secondary { background-color: #6c757d; }
+.badge-warning { background-color: #ffc107; }
+.badge-info { background-color: #17a2b8; }
+.badge-success { background-color: #28a745; }
+
+th button { border: none; background-color: white; }
+th button i { color: #108efb; }
+
+#updateModal {
+  z-index: 10000 !important;
+}
+
+#updateModal .modal-dialog {
+  z-index: 10001 !important;
+}
+
+#updateModal .modal-content {
+  z-index: 10002 !important;
+}
+
+#updateModal + .modal-backdrop,
+#updateModal ~ .modal-backdrop {
+  z-index: 9999 !important;
+}
+
+::ng-deep .ng-dropdown-panel {
+  z-index: 10050 !important;
+}
+/* Styles supplémentaires pour les modals */
+.modal.fade .modal-dialog {
+  transition: transform 0.3s ease-out;
+  transform: translate(0, -50px);
+}
+
+.modal.show .modal-dialog {
+  transform: none;
+}
+
+/* Assurer que les modals sont visibles */
+.modal {
+  backdrop-filter: blur(2px);
+}
+
+.modal-content {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  border: none;
+}
+
+/* Z-index pour le modal update */
+#updateModal {
+  z-index: 1060 !important;
+}
+
+#updateModal .modal-backdrop {
+  z-index: 1050 !important;
+}
+
+/* Correction pour ng-select dans les modals */
+::ng-deep .modal .ng-dropdown-panel {
+  z-index: 1061 !important;
+}
+
+/* Assurer la visibilité en fullscreen */
+body.fullscreen-active .modal {
+  z-index: 10050 !important;
+}
+
+body.fullscreen-active .modal-backdrop {
+  z-index: 10049 !important;
+}
+/* Dans list-consommation.component.css */
+.modal {
+  pointer-events: none;
+}
+
+.modal.show {
+  pointer-events: auto;
+  display: block !important;
+}
+
+.modal-backdrop.show {
+  pointer-events: auto;
+}
+
+/* Priorité pour tous les modals */
+#addModal,
+#updateModal,
+#detailsModal,
+#confirmSendModal,
+#confirmDeleteModal {
+  z-index: 1055 !important;
+}
+
+.modal-dialog {
+  pointer-events: auto;
+}
+
+.modal-content {
+  pointer-events: auto;
+}

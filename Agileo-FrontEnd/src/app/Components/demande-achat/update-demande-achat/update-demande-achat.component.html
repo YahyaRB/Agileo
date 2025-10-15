@@ -1,0 +1,239 @@
+
+
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-white">
+        <h4 class="modal-title" id="updateModalLabel">
+          <i class="fa fa-edit"></i>
+          Modifier la Consommation #{{demandeToUpdate?.id}}
+        </h4>
+        <button #closebutton type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+        <form [formGroup]="myFormUpdate" (ngSubmit)="onUpdateDemandeAchat()">
+          <div class="modal-body">
+            <!-- Informations générales -->
+            <div class="form-row align-items-center justify-content-center">
+              <div class="form-group col-md-12 d-flex align-items-center">
+                <label class="mr-2 mb-0">Affaire </label>
+
+                <ng-select class="w-100"
+                           placeholder="Selectionnez une affaire"
+                           formControlName="affaire"
+                           name="affaire"
+                           [disabled]="isLoading">
+                  <ng-option *ngFor="let affaire of affairesDisponibles" [value]="affaire">
+                    {{affaire.affaire}} - {{affaire.libelle}}
+                  </ng-option>
+                </ng-select>
+              </div>
+
+
+            </div>
+
+            <!-- Third Row: Commentaire -->
+            <div class="form-row align-items-center justify-content-center">
+              <div class="form-group col-md-6 d-flex align-items-center">
+                <label class="mr-2 mb-0 ml-2" style="white-space: nowrap;">Délai souhaité </label>
+                <input type="date"
+                       class="form-control"
+                       formControlName="delai"
+                       [disabled]="isLoading">
+              </div>
+              <div class="form-group col-md-6 d-flex align-items-center">
+                <label class="mr-2 mb-0 ml-2" style="white-space: nowrap;">Commentaire </label>
+                <input type="text" class="form-control" formControlName="commentaire"
+                       placeholder="Ajoutez un commentaire sur cette demande..."
+                       [disabled]="isLoading">
+              </div>
+            </div>
+
+            <!-- Séparateur -->
+            <hr class="my-4">
+
+            <!-- NOUVELLE Section des pièces jointes -->
+            <div class="row">
+              <div class="col-12">
+                <h5 class="text-primary mb-3">
+                  <i class="fe fe-paperclip mr-2"></i>
+                  Pièces jointes
+                  <span class="badge badge-secondary ml-2">
+                {{ listPiecesJointes.length + selectedFiles.length }}/{{ maxFiles }}
+              </span>
+                </h5>
+
+                <!-- Fichiers existants -->
+                <div *ngIf="listPiecesJointes.length > 0" class="mb-4">
+                  <h5 class="text-muted mb-2">
+                    <i class="fe fe-check-circle text-success mr-1"></i>
+                    Fichiers actuels ({{ listPiecesJointes.length }})
+                  </h5>
+
+                  <div class="row">
+                    <div class="col-md-6 col-lg-4 mb-3" *ngFor="let file of listPiecesJointes">
+                      <div class="card file-card h-100 border-light">
+                        <div class="card-body p-3">
+                          <h5 class="card-title text-truncate" [title]="file.fullFileName">
+                            <i class="fa" [class]="getFileIcon(file.fullFileName)"></i>
+                            {{ file.fullFileName }}
+                          </h5>
+
+                          <div class="file-metadata">
+                            <small class="text-muted d-block" *ngIf="file.size">
+                              <i class="fe fe-hard-drive"></i>
+                              {{ formatFileSize(file.size) }}
+                            </small>
+                            <small class="text-muted d-block" *ngIf="file.uploadDate">
+                              <i class="fe fe-calendar"></i>
+                              {{ file.uploadDate | date:'dd/MM/yyyy HH:mm' }}
+                            </small>
+                            <span class="badge badge-primary badge-sm mt-1">
+                          {{ file.extension?.toUpperCase() }}
+                        </span>
+                          </div>
+                        </div>
+
+                        <div class="card-footer bg-light p-2">
+                          <div class="btn-group w-100" role="group">
+                            <button type="button"
+                                    class="btn btn-outline-success btn-sm"
+                                    (click)="downloadFile(file)"
+                                    [disabled]="isLoading"
+                                    title="Télécharger">
+                              <i class="fe fe-download"></i>
+                              <span class="d-none d-sm-inline">Télécharger</span>
+                            </button>
+
+                            <button *ngIf="!isDemandeEnvoyee()"
+                                    type="button"
+                                    class="btn btn-outline-danger btn-sm"
+                                    (click)="deleteExistingFile(file.fileId)"
+                                    [disabled]="isLoading"
+                                    title="Supprimer">
+                              <i class="fe fe-trash-2"></i>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Zone d'upload pour nouveaux fichiers -->
+                <div *ngIf="canAddMoreFiles()" class="mb-4">
+                  <h5 class="text-muted mb-2">
+                    <i class="fe fe-upload text-success mr-1"></i>
+                    Ajouter des fichiers
+                    <small class="text-muted ml-2">
+                      ({{ getRemainingFilesCount() }} restant(s))
+                    </small>
+                  </h5>
+
+                  <!-- Zone de drag & drop -->
+                  <div class="upload-zone"
+                       [class.drag-over]="isDragOver"
+                       (dragover)="onDragOver($event)"
+                       (dragleave)="onDragLeave($event)"
+                       (drop)="onDrop($event)"
+                       (click)="fileInput.click()">
+
+                    <div class="upload-content">
+                      <i class="fe fe-upload-cloud upload-icon"></i>
+                      <p class="upload-text">
+                        <strong>Cliquez pour sélectionner</strong> ou glissez-déposez vos fichiers ici
+                      </p>
+                      <small class="text-muted">
+                        PDF, DOC, XLS, Images - Max 50MB par fichier
+                      </small>
+                    </div>
+
+                    <input #fileInput
+                           type="file"
+                           multiple
+                           accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                           (change)="onFileSelect($event)"
+                           style="display: none">
+                  </div>
+                </div>
+
+                <!-- Fichiers sélectionnés (nouveaux) -->
+                <div *ngIf="selectedFiles.length > 0" class="mb-4">
+                  <h5 class="text-warning mb-2">
+                    <i class="fe fe-clock text-warning mr-1"></i>
+                    Fichiers sélectionnés - En attente d'upload ({{ selectedFiles.length }})
+                  </h5>
+
+                  <div class="selected-files">
+                    <div *ngFor="let file of selectedFiles; let i = index"
+                         class="selected-file-item">
+                      <div class="file-info">
+                        <i class="fa" [class]="getFileIcon(file.name)"></i>
+                        <div class="file-details">
+                          <span class="file-name" [title]="file.name">{{ file.name }}</span>
+                          <small class="file-size text-muted">{{ formatFileSize(file.size) }}</small>
+                        </div>
+                      </div>
+                      <button type="button"
+                              class="btn btn-sm btn-outline-danger"
+                              (click)="removeSelectedFile(i)"
+                              [disabled]="isUploading || isLoading"
+                              title="Retirer de la sélection">
+                        <i class="fe fe-x"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Actions pour fichiers sélectionnés -->
+                  <div class="mt-3 d-flex justify-content-between">
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            (click)="clearSelectedFiles()"
+                            [disabled]="isUploading || isLoading">
+                      <i class="fe fe-trash-2 mr-1"></i>
+                      Vider la sélection
+                    </button>
+
+                    <div class="alert alert-info mb-0 py-2 px-3">
+                      <i class="fe fe-info mr-1"></i>
+                      <small>Les fichiers seront uploadés lors de la sauvegarde</small>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Messages d'état -->
+                <div *ngIf="!canAddMoreFiles() && !isDemandeEnvoyee()" class="alert alert-info">
+                  <i class="fe fe-info mr-2"></i>
+                  <strong>Limite atteinte:</strong> Maximum {{ maxFiles }} fichiers par demande d'achat.
+                </div>
+
+                <div *ngIf="isDemandeEnvoyee()" class="alert alert-warning">
+                  <i class="fe fe-lock mr-2"></i>
+                  <strong>Demande envoyée:</strong> Impossible d'ajouter ou modifier les pièces jointes.
+                </div>
+
+                <!-- État de chargement -->
+                <div *ngIf="isUploading" class="alert alert-primary">
+                  <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm text-primary mr-2" role="status"></div>
+                    <span>Upload des fichiers en cours...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">
+              <i class="fa fa-times"></i> Annuler
+            </button>
+            <button type="submit" class="btn btn-warning"    [disabled]="myFormUpdate.invalid || isLoading || isUploading">
+              <span *ngIf="isLoading || isUploading" class="spinner-border spinner-border-sm mr-1"></span>
+              <i class="fa fa-save" *ngIf="!isLoading && !isUploading"></i>
+              {{(isLoading || isUploading) ? 'Vérification...' : 'Enregistrer les modifications'}}
+            </button>
+          </div>
+      </form>
+    </div>
+  </div>

@@ -1,0 +1,114 @@
+<div class="section-body" id="page_top">
+  <div class="container-fluid">
+    <div class="page-header">
+      <div class="left">
+        <div class="input-group">
+
+        </div>
+      </div>
+      <div class="right">
+        <ul class="nav nav-pills">
+          <li class="nav-item dropdown">
+
+
+          </li>
+
+        </ul>
+        <div class="notification d-flex">
+
+
+          <div class="dropdown user-dropdown">
+            <a href="javascript:void(0)"
+               class="user-profile-toggle expanded-clickable"
+               data-toggle="dropdown"
+               aria-haspopup="true"
+               aria-expanded="false">
+
+              <div class="user-info-container">
+                <!-- Avatar utilisateur -->
+                <div class="user-avatar-container">
+                  <img *ngIf="hasUserImage(); else defaultAvatar"
+                       [src]="getUserImageUrl()"
+                       [alt]="displayName"
+                       class="user-avatar"
+                       (error)="onImageError($event)">
+
+                  <ng-template #defaultAvatar>
+                    <div class="user-initials"
+                         [style.background]="getUserAvatarColor()">
+                      {{ getUserInitials() }}
+                    </div>
+                  </ng-template>
+                </div>
+
+                <div class="user-info">
+                  <span class="user-name">{{ displayNamesmall }}</span>
+                </div>
+                <i class="fa fa-chevron-down ml-2"></i>
+              </div>
+            </a>
+
+            <div class="dropdown-menu dropdown-menu-right user-dropdown-menu">
+              <!-- Informations utilisateur -->
+              <div class="dropdown-item-text user-card">
+                <div class="d-flex align-items-center">
+                  <!-- Avatar large dans le dropdown -->
+                  <div class="user-avatar-large-container">
+                    <img *ngIf="hasUserImage(); else defaultAvatarLarge"
+                         [src]="getUserImageUrl()"
+                         [alt]="displayName"
+                         class="user-avatar-large"
+                         (error)="onImageError($event)">
+
+                    <ng-template #defaultAvatarLarge>
+                      <div class="user-initials-large"
+                           [style.background]="getUserAvatarColor()">
+                        {{ getUserInitials() }}
+                      </div>
+                    </ng-template>
+                  </div>
+
+                  <div class="user-details">
+                    <div class="user-name-large">{{ displayName }}</div>
+                    <div class="user-email">{{ getUserEmail() }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="dropdown-divider"></div>
+
+              <!-- Actions du profil -->
+              <a class="dropdown-item" (click)="goToProfile()">
+                <i class="fa fa-user"></i> Mon Profil
+              </a>
+              <a class="dropdown-item" (click)="goToSettings()">
+                <i class="fa fa-cog"></i> Paramètres
+              </a>
+              <a class="dropdown-item" href="#">
+                <i class="fa fa-bell"></i> Préférences de notification
+              </a>
+
+              <div class="dropdown-divider"></div>
+
+              <!-- Aide et support -->
+              <a class="dropdown-item" href="#">
+                <i class="fa fa-question-circle"></i> Aide & Support
+              </a>
+              <a class="dropdown-item" href="#">
+                <i class="fa fa-book"></i> Documentation
+              </a>
+
+              <div class="dropdown-divider"></div>
+
+              <!-- Déconnexion -->
+              <a class="dropdown-item text-danger" (click)="logout()" >
+                <i class="fa fa-sign-out"></i> Se déconnecter
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

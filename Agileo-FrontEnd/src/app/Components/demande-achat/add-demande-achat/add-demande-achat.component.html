@@ -1,0 +1,172 @@
+<!-- ==================== add-demande-achat.component.html AMÉLIORÉ ==================== -->
+<div class="modal-dialog modal-xl" role="document">
+  <div class="modal-content">
+    <form [formGroup]="myFormRegister" (ngSubmit)="onRegisterDemandeAchat()">
+      <div class="modal-header">
+        <h4 class="modal-title text-success">Ajouter une demande d'achat</h4>
+        <button type="button" class="close text-success" data-dismiss="modal" aria-label="Fermer" #closebutton>
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- First Row: Affaire and Delai -->
+        <div class="form-row align-items-center justify-content-center">
+          <div class="form-group col-md-12 ">
+            <label class="mr-20 mb-0">Affaire<span class="text-danger">*</span> </label>
+            <ng-select class="w-100" placeholder="Sélectionnez une affaire" formControlName="affaire"
+                       name="affaire">
+              <ng-option *ngFor="let affaire of affaires" [value]="affaire">
+                {{affaire.affaire}} - {{affaire.libelle}}
+              </ng-option>
+            </ng-select>
+          </div>
+        </div>
+
+
+        <!-- Third Row: Commentaire -->
+        <div class="form-row align-items-center justify-content-center">
+          <div class="form-group col-md-6 ">
+            <label class="mr-2 mb-0 ml-2" style="white-space: nowrap;">Délai souhaité <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" formControlName="delai">
+          </div>
+          <div class="form-group col-md-6">
+            <label class="mr-2 mb-0 ml-2" style="white-space: nowrap;">Commentaire </label>
+            <input type="text" class="form-control" formControlName="commentaire"
+                   placeholder="Ajoutez un commentaire sur cette demande...">
+          </div>
+        </div>
+
+        <!-- File Upload Section AMÉLIORÉE -->
+        <div class="form-row justify-content-center mt-3">
+          <div class="form-group col-md-12">
+            <label class="font-weight-bold">
+              Pièces jointes
+              <span class="badge badge-info ml-2">{{0+selectedFiles.length}}/{{MAX_FILES}}</span>
+            </label>
+
+            <!-- Zone de drop et sélection -->
+            <div class="custom-file-upload border border-dashed border-success rounded p-4 text-center"
+                 [class.bg-light]="!canAddMoreFiles"
+                 [style.cursor]="canAddMoreFiles ? 'pointer' : 'not-allowed'"
+                 (click)="canAddMoreFiles && fileInput.click()">
+              <i class="fa fa-cloud-upload upload-icon text-success mb-2"
+                 [class.text-muted]="!canAddMoreFiles"
+                 style="font-size: 2rem;"></i>
+              <div *ngIf="canAddMoreFiles; else noMoreFiles">
+                <span class="text-success d-block font-weight-bold">Choisir des fichiers</span>
+                <small class="text-muted">Cliquez pour sélectionner ou glissez-déposez</small>
+              </div>
+
+              <ng-template #noMoreFiles>
+                <span class="text-muted d-block">Limite de {{MAX_FILES}} fichiers atteinte</span>
+              </ng-template>
+
+              <input type="file"
+                     #fileInput
+                     (change)="onFileSelected($event)"
+                     accept=".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.doc,.docx"
+                     multiple
+                     [disabled]="!canAddMoreFiles"
+                     hidden>
+            </div>
+
+            <!-- Informations sur les types de fichiers acceptés -->
+            <small class="text-muted d-block mt-2">
+              <i class="fa fa-info-circle mr-1"></i>
+              Types acceptés: PDF, Excel, Word, Images (PNG, JPG) • Max: 50MB par fichier
+            </small>
+
+            <!-- Compteur de fichiers restants -->
+            <small class="text-info d-block mt-1" *ngIf="canAddMoreFiles">
+              Vous pouvez encore ajouter {{remainingFilesCount}} fichier(s)
+            </small>
+          </div>
+        </div>
+
+        <!-- Selected Files Display AMÉLIORÉE -->
+        <div class="form-row justify-content-center mt-3" *ngIf="selectedFiles.length > 0">
+          <div class="form-group col-md-10">
+            <label class="font-weight-bold">Fichiers sélectionnés</label>
+
+            <div class="selected-files-container border rounded p-3 bg-light">
+              <div class="selected-file-item d-flex align-items-center justify-content-between mb-2 p-2 bg-white rounded border"
+                   *ngFor="let file of selectedFiles; let i = index">
+
+                <!-- Icône du type de fichier -->
+                <div class="file-icon mr-3">
+                  <i class="fa fa-2x"
+                     [class.fa-file-pdf-o]="file.name.toLowerCase().includes('.pdf')"
+                     [class.fa-file-excel-o]="file.name.toLowerCase().includes('.xls')"
+                     [class.fa-file-word-o]="file.name.toLowerCase().includes('.doc')"
+                     [class.fa-file-image-o]="file.name.toLowerCase().includes('.png') || file.name.toLowerCase().includes('.jpg') || file.name.toLowerCase().includes('.jpeg')"
+                     [class.fa-file-o]="!file.name.toLowerCase().includes('.pdf') && !file.name.toLowerCase().includes('.xls') && !file.name.toLowerCase().includes('.doc') && !file.name.toLowerCase().includes('.png') && !file.name.toLowerCase().includes('.jpg') && !file.name.toLowerCase().includes('.jpeg')"
+                     [class.text-danger]="file.name.toLowerCase().includes('.pdf')"
+                     [class.text-success]="file.name.toLowerCase().includes('.xls')"
+                     [class.text-primary]="file.name.toLowerCase().includes('.doc')"
+                     [class.text-info]="file.name.toLowerCase().includes('.png') || file.name.toLowerCase().includes('.jpg') || file.name.toLowerCase().includes('.jpeg')"></i>
+                </div>
+
+                <!-- Informations du fichier -->
+                <div class="file-info flex-grow-1">
+                  <div class="file-name font-weight-bold text-truncate" [title]="file.name">
+                    {{file.name}}
+                  </div>
+                  <div class="file-details">
+                    <small class="text-muted">
+                      {{file.sizeFormatted}} •
+                      <span class="text-success">{{file.generatedName}}</span>
+                    </small>
+                  </div>
+                </div>
+
+                <!-- Bouton de suppression -->
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        (click)="removeFile(i)"
+                        [title]="'Supprimer ' + file.name">
+                  <i class="fa fa-trash"></i>
+                </button>
+              </div>
+
+              <!-- Résumé des fichiers -->
+              <div class="files-summary mt-3 p-2 bg-info text-white rounded" *ngIf="selectedFiles.length > 0">
+                <small>
+                  <i class="fa fa-info-circle mr-2"></i>
+                  {{selectedFiles.length}} fichier(s) sélectionné(s) •
+                  <!--                  Taille totale: {{getTotalFilesSize()}}-->
+                </small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+
+        <!-- Loading indicator -->
+        <div class="text-center mt-3" *ngIf="isLoading">
+          <div class="spinner-border text-success" role="status">
+            <span class="sr-only">Traitement en cours...</span>
+          </div>
+          <p class="mt-2 text-muted">
+            <span *ngIf="selectedFiles.length === 0">Enregistrement de la demande...</span>
+            <span *ngIf="selectedFiles.length > 0">Enregistrement et upload des fichiers...</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary mr-2" (click)="onCancel()" [disabled]="isLoading">
+          Annuler
+        </button>
+        <button type="submit"
+                class="btn btn-success"
+                [disabled]="myFormRegister.invalid || isLoading">
+          <span *ngIf="isLoading" class="spinner-border spinner-border-sm mr-2"></span>
+          <span *ngIf="!isLoading">Enregistrer</span>
+          <span *ngIf="isLoading">Traitement...</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

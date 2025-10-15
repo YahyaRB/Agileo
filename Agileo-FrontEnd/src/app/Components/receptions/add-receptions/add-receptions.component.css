@@ -1,0 +1,415 @@
+/* ==================== STEPPER (4 STEPS) ==================== */
+.stepper-wrapper {
+  display: flex;
+  justify-content: space-between;
+  margin: 20px 0;
+  padding: 0 30px;
+  position: relative;
+}
+
+.stepper-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.stepper-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background-color: #e0e0e0;
+  top: 20px;
+  left: 50%;
+  z-index: -1;
+}
+
+.stepper-item.completed:not(:last-child)::after {
+  background-color: #28a745;
+}
+
+.step-counter {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  margin-bottom: 6px;
+  color: #666;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.stepper-item.active .step-counter {
+  background-color: #007bff;
+  color: white;
+  box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.stepper-item.completed .step-counter {
+  background-color: #28a745;
+  color: white;
+}
+
+.step-name {
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  margin-top: 5px;
+}
+
+.stepper-item.active .step-name {
+  color: #007bff;
+  font-weight: 600;
+}
+
+.stepper-item.completed .step-name {
+  color: #28a745;
+}
+
+/* Responsive stepper */
+@media (max-width: 768px) {
+  .step-name {
+    font-size: 10px;
+  }
+
+  .step-counter {
+    width: 35px;
+    height: 35px;
+    font-size: 14px;
+  }
+
+  .stepper-wrapper {
+    padding: 0 10px;
+  }
+}
+
+/* ==================== STEP CONTENT ==================== */
+.step-content {
+  animation: fadeIn 0.3s ease-in;
+  min-height: 300px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.step-title {
+  color: #007bff;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+/* ==================== BON DE COMMANDE DETAILS (STEP 2) ==================== */
+.bc-details-card {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.bc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.bc-numero {
+  margin: 0;
+  font-size: 20px;
+  color: #007bff;
+}
+
+.bc-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.bc-info-item {
+  background: white;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 3px solid #007bff;
+}
+
+.bc-info-label {
+  font-size: 12px;
+  color: #6c757d;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.bc-info-label i {
+  margin-right: 5px;
+  color: #007bff;
+}
+
+.bc-info-value {
+  font-size: 14px;
+  color: #212529;
+  line-height: 1.5;
+}
+
+.bc-info-value strong {
+  color: #007bff;
+}
+
+.bc-notes {
+  background: white;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 3px solid #17a2b8;
+  margin-top: 15px;
+}
+
+.bc-notes .bc-info-label {
+  color: #17a2b8;
+}
+
+.bc-notes .bc-info-label i {
+  color: #17a2b8;
+}
+
+/* ==================== BON DE COMMANDE SELECT ==================== */
+.bon-commande-option {
+  padding: 5px 0;
+}
+
+.bc-numero {
+  font-size: 14px;
+  color: #007bff;
+}
+
+.bc-fournisseur {
+  font-size: 12px;
+}
+
+/* ==================== RÉCAPITULATIF (STEP 3) ==================== */
+.recap-box {
+  background: #e7f3ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.recap-item {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.recap-item:last-child {
+  margin-bottom: 0;
+}
+
+.recap-item strong {
+  color: #007bff;
+  margin-right: 8px;
+}
+
+/* ==================== FICHIERS (STEP 4) ==================== */
+.drop-zone {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+  background-color: #fafafa;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.drop-zone:hover:not(.disabled) {
+  border-color: #007bff;
+  background-color: #f0f8ff;
+}
+
+.drop-zone.drag-over {
+  border-color: #28a745;
+  background-color: #e8f5e9;
+  transform: scale(1.02);
+}
+
+.drop-zone.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f5f5f5;
+}
+
+.drop-zone-icon {
+  font-size: 48px;
+  color: #007bff;
+  margin-bottom: 15px;
+}
+
+.drop-zone.drag-over .drop-zone-icon {
+  color: #28a745;
+}
+
+.drop-zone-text {
+  margin: 10px 0;
+  color: #666;
+  font-size: 16px;
+}
+
+/* Files List */
+.files-list {
+  margin-top: 20px;
+}
+
+.files-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background-color: white;
+  transition: all 0.2s ease;
+}
+
+.file-item:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transform: translateX(2px);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.file-info i {
+  font-size: 24px;
+  margin-right: 12px;
+}
+
+.file-details {
+  flex: 1;
+}
+
+.file-name {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.file-size {
+  font-size: 12px;
+}
+
+.files-total {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #dee2e6;
+  text-align: right;
+  color: #666;
+}
+
+/* ==================== FORM STYLING ==================== */
+.form-group label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 8px;
+}
+
+.form-control:focus,
+.ng-select.ng-select-focused .ng-select-container {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* ==================== BADGES ==================== */
+.badge {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 768px) {
+  .bc-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stepper-wrapper {
+    padding: 0 10px;
+  }
+
+  .step-name {
+    display: none;
+  }
+}
+/* Ajoutez dans src/styles.css ou dans ligne-demande.component.css */
+
+/* Augmenter la hauteur du ng-select */
+.ng-select .ng-select-container {
+  min-height: 38px !important;
+  height: 38px !important;
+}
+
+/* Augmenter la taille du texte */
+.ng-select .ng-select-container .ng-value-container {
+  padding: 0 12px !important;
+}
+
+.ng-select .ng-select-container .ng-value-container .ng-input input {
+  height: 36px !important;
+  font-size: 14px !important;
+}
+
+/* Taille du texte sélectionné */
+.ng-select .ng-value-label {
+  font-size: 14px !important;
+}
+
+/* Taille du placeholder */
+.ng-select .ng-placeholder {
+  font-size: 14px !important;
+}
+
+/* Si vous voulez encore plus grand */
+.ng-select-lg .ng-select-container {
+  min-height: 45px !important;
+  height: 45px !important;
+}
+
+.ng-select-lg .ng-input input {
+  height: 43px !important;
+  font-size: 16px !important;
+}

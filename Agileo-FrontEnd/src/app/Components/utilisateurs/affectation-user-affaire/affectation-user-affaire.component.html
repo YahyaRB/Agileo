@@ -1,0 +1,174 @@
+<div class="modal-dialog modal-xl" role="document">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h5 class="modal-title text-success">Affectation des Affaires</h5>
+      <button type="button" class="close text-success" data-dismiss="modal" aria-label="Fermer">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <!-- Loading Spinner -->
+      <div *ngIf="isLoading" class="text-center py-4">
+        <div class="spinner-border text-primary" role="status">
+          <span class="sr-only">Chargement...</span>
+        </div>
+        <p class="mt-2">Chargement des affaires...</p>
+      </div>
+
+      <!-- Contenu principal -->
+      <!-- Contenu principal -->
+      <div *ngIf="!isLoading" class="container">
+        <div class="row mb-3">
+          <div class="col-12">
+            <div class="alert alert-info">
+              <strong>Utilisateur:</strong> {{userSelected?.nom}} {{userSelected?.prenom}}<br>
+              <strong>Accessor ID:</strong> {{accessorSelected?.accessorId || 'Non lié'}}
+            </div>
+          </div>
+        </div>
+
+        <!-- Message si pas d'accessor -->
+        <div *ngIf="!accessorSelected?.accessorId" class="row">
+          <div class="col-12">
+            <div class="alert alert-warning">
+              <i class="fa fa-exclamation-triangle"></i>
+              <strong>Attention:</strong> Cet utilisateur n'est pas lié à un accessor.
+              Veuillez d'abord créer la liaison utilisateur-accessor.
+            </div>
+          </div>
+        </div>
+
+        <!-- Interface de déplacement gauche/droite -->
+        <div *ngIf="accessorSelected?.accessorId" class="row">
+          <!-- Tableau de gauche - Affaires disponibles -->
+          <div class="col-md-5">
+            <h6 class="text-center">Affaires disponibles</h6>
+            <div class="table-responsive small-table">
+              <div class="input-group border rounded-pill px-3 py-2 mr-2 mb-3" style="width: 70%">
+                 <span style="font-size: 20px; margin-right: 5px;">
+      <i class="fa fa-search"></i>
+    </span>
+                <input type="text" class="form-control border-0 p-0" placeholder="Chercher une affaire par ..." style="box-shadow: none; outline: none;" [(ngModel)]="pfiltre">
+              </div>
+              <table class="table table-striped mb-0 text-nowrap">
+                <thead>
+                <tr>
+                  <th width="50"></th>
+                  <th>Code</th>
+                  <th>Nom</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr *ngFor="let affaire of affairesDisponibles | psearch: pfiltre | paginate:{id: 'dispo', itemsPerPage: tableSize, currentPage: page, totalItems: count }; trackBy: trackByAffaire">
+                  <td>
+                    <input type="checkbox" [(ngModel)]="affaire.selected">
+                  </td>
+                  <td>
+                    <strong>{{getAffaireCode(affaire)}}</strong>
+                    <span *ngIf="affaire.toBeDeleted" class="badge bg-danger ms-2">À supprimer</span>
+                  </td>
+                  <td>{{getAffaireName(affaire)}}</td>
+                </tr>
+                </tbody>
+              </table>
+
+            </div>
+            <div class="mt-3 d-flex justify-content-center" style="font-size: 13px; margin-left: -80px;">
+              <pagination-controls
+                id="dispo"
+                previousLabel="Précédent"
+                nextLabel="Suivant"
+                (pageChange)="onTableDataChange($event)">
+              </pagination-controls>
+            </div>
+          </div>
+
+          <!-- Flèches -->
+          <div class="col-md-2 d-flex flex-column justify-content-center align-items-center arrows-container">
+            <button (click)="attribuerAffaires()"
+                    style="width: 40px; height: 40px"
+                    class="btn btn-primary mb-3 d-flex align-items-center justify-content-center"
+                    title="Attribuer les affaires sélectionnées">
+              <i class="fa fa-arrow-right" style="font-size: 20px;" aria-hidden="true"></i>
+            </button>
+            <button (click)="retirerAffaires()"
+                    style="width: 40px; height: 40px"
+                    class="btn btn-secondary d-flex align-items-center justify-content-center"
+                    title="Retirer les affaires sélectionnées">
+              <i class="fa fa-arrow-left" style="font-size: 20px;" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <!-- Tableau de droite - Affaires attribuées -->
+          <div class="col-md-5">
+            <h6 class="text-center">Affaires attribuées</h6>
+            <div class="table-responsive small-table table-container-fixed">
+              <div class="input-group border rounded-pill px-3 py-2 mr-2 mb-3" style="width: 70%">
+                 <span style="font-size: 20px; margin-right: 5px;">
+      <i class="fa fa-search"></i>
+    </span>
+                <input type="text" class="form-control border-0 p-0" placeholder="Chercher une affaire par ..." style="box-shadow: none; outline: none;" [(ngModel)]="pfiltreAttr">
+              </div>
+              <table class="table table-striped mb-0 text-nowrap">
+                <thead>
+                <tr>
+                  <th width="50"></th>
+                  <th>Code</th>
+                  <th>Nom</th>
+
+                </tr>
+                </thead>
+                <tbody>
+                <tr *ngFor="let affaire of affairesAttribuees | psearch: pfiltreAttr | paginate:{id: 'attrib', itemsPerPage: tableSizeAttr,currentPage: pageAttr,totalItems: countAttr }; trackBy: trackByAffaire">
+                  <td>
+                    <input type="checkbox" [(ngModel)]="affaire.selected">
+                  </td>
+                  <td>
+                    <strong>{{getAffaireCode(affaire)}}</strong>
+                    <span *ngIf="!affaire.fromDatabase" class="badge bg-success ms-2">Nouveau</span>
+                  </td>
+                  <td>{{getAffaireName(affaire)}}</td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-3 d-flex justify-content-center" style="font-size: 13px;">
+              <pagination-controls
+                id="attrib"
+                previousLabel="Précédent"
+                nextLabel="Suivant"
+                (pageChange)="onTableDataChangeAttr($event)">
+              </pagination-controls>
+            </div>
+          </div>
+        </div>
+
+        <!-- Info sur les sélections -->
+        <div *ngIf="accessorSelected?.accessorId" class="row mt-3">
+          <div class="col-md-6">
+            <small class="text-muted">
+              <strong>Affaires disponibles:</strong> {{affairesDisponibles?.length || 0}}
+            </small>
+          </div>
+          <div class="col-md-6 text-right">
+            <small class="text-muted">
+              <strong>Affaires attribuées:</strong> {{affairesAttribuees?.length || 0}}
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button"
+              class="btn btn-success"
+              (click)="validerAffectation()"
+              [disabled]="isLoading || !accessorSelected?.accessorId">
+        <span *ngIf="isLoading" class="spinner-border spinner-border-sm mr-2" role="status"></span>
+        {{isLoading ? 'Traitement...' : 'Valider les modifications'}}
+      </button>
+      <button type="button" class="btn btn-secondary" data-dismiss="modal" [disabled]="isLoading">
+        Fermer
+      </button>
+    </div>
+  </div>
+</div>

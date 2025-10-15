@@ -1,0 +1,196 @@
+<div class="modal-dialog modal-lg" role="document">
+  <div class="modal-content">
+    <form [formGroup]="myFormAdd" (ngSubmit)="onAddAffaire()">
+      <div class="modal-header">
+        <h5 class="modal-title text-success">
+          <i class="fa fa-plus-circle mr-2"></i>
+          Assigner un utilisateur à une affaire
+        </h5>
+        <button type="button" class="close text-success" data-dismiss="modal" aria-label="Fermer" #closebutton>
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Loading indicator -->
+        <div *ngIf="isLoading" class="text-center py-3">
+          <div class="spinner-border text-primary" role="status">
+            <span class="sr-only">Chargement...</span>
+          </div>
+          <p class="mt-2">Chargement des données...</p>
+        </div>
+
+        <!-- Form content -->
+        <div *ngIf="!isLoading">
+          <!-- Sélection d'affaire -->
+          <div class="form-group row">
+            <label for="selectedAffaire" class="col-sm-3 col-form-label">
+              <i class="fa fa-briefcase mr-1"></i>
+              Affaire <span class="text-danger">*</span>
+            </label>
+            <div class="col-sm-9">
+              <select
+                id="selectedAffaire"
+                class="form-control"
+                formControlName="selectedAffaire"
+                [class.is-invalid]="selectedAffaire?.touched && selectedAffaire?.invalid">
+                <option value="">Sélectionner une affaire...</option>
+                <option *ngFor="let affaire of availableAffaires" [value]="affaire.code">
+                  {{ getAffaireDisplayName(affaire) }}
+                </option>
+              </select>
+
+              <!-- Message d'erreur -->
+              <div *ngIf="selectedAffaire?.touched && selectedAffaire?.invalid" class="invalid-feedback">
+                Veuillez sélectionner une affaire
+              </div>
+
+              <!-- Info supplementaire -->
+              <small class="form-text text-muted">
+                <i class="fa fa-info-circle mr-1"></i>
+                Choisissez l'affaire à laquelle assigner l'utilisateur
+              </small>
+            </div>
+          </div>
+
+          <!-- Sélection d'utilisateur (Accessor) -->
+          <div class="form-group row">
+            <label for="selectedAccessor" class="col-sm-3 col-form-label">
+              <i class="fa fa-user mr-1"></i>
+              Utilisateur <span class="text-danger">*</span>
+            </label>
+            <div class="col-sm-9">
+              <select
+                id="selectedAccessor"
+                class="form-control"
+                formControlName="selectedAccessor"
+                [class.is-invalid]="selectedAccessor?.touched && selectedAccessor?.invalid">
+                <option value="">Sélectionner un utilisateur...</option>
+                <optgroup label="Utilisateurs actifs">
+                  <option *ngFor="let accessor of availableAccessors | slice:0:50" [value]="accessor.id">
+                    {{ getAccessorDisplayName(accessor) }}
+                  </option>
+                </optgroup>
+              </select>
+
+              <!-- Message d'erreur -->
+              <div *ngIf="selectedAccessor?.touched && selectedAccessor?.invalid" class="invalid-feedback">
+                Veuillez sélectionner un utilisateur
+              </div>
+
+              <!-- Info supplementaire -->
+              <small class="form-text text-muted">
+                <i class="fa fa-info-circle mr-1"></i>
+                Sélectionnez l'utilisateur à assigner à cette affaire
+              </small>
+            </div>
+          </div>
+
+          <!-- Commentaire (optionnel) -->
+          <div class="form-group row">
+            <label for="commentaire" class="col-sm-3 col-form-label">
+              <i class="fa fa-comment mr-1"></i>
+              Commentaire
+            </label>
+            <div class="col-sm-9">
+              <textarea
+                id="commentaire"
+                class="form-control"
+                formControlName="commentaire"
+                rows="3"
+                placeholder="Commentaire sur l'assignation (optionnel)..."
+                maxlength="200">
+              </textarea>
+
+              <small class="form-text text-muted">
+                <i class="fa fa-info-circle mr-1"></i>
+                Commentaire optionnel sur cette assignation (max 200 caractères)
+              </small>
+            </div>
+          </div>
+
+          <!-- Statut système -->
+          <div class="form-group row">
+            <label class="col-sm-3 col-form-label">
+              <i class="fa fa-toggle-on mr-1"></i>
+              Statut
+            </label>
+            <div class="col-sm-9">
+              <div class="form-check form-check-inline mt-2">
+                <input
+                  class="form-check-input"
+                  type="radio"
+                  formControlName="statut"
+                  [value]="1"
+                  id="statutActif">
+                <label class="form-check-label text-success" for="statutActif">
+                  <i class="fa fa-check-circle mr-1"></i>
+                  Actif
+                </label>
+              </div>
+
+              <div class="form-check form-check-inline ml-4 mt-2">
+                <input
+                  class="form-check-input"
+                  type="radio"
+                  formControlName="statut"
+                  [value]="0"
+                  id="statutInactif">
+                <label class="form-check-label text-secondary" for="statutInactif">
+                  <i class="fa fa-pause-circle mr-1"></i>
+                  Inactif
+                </label>
+              </div>
+
+              <small class="form-text text-muted">
+                <i class="fa fa-info-circle mr-1"></i>
+                Définit si l'assignation est active ou non
+              </small>
+            </div>
+          </div>
+
+          <!-- Informations importantes -->
+          <div class="alert alert-info" role="alert">
+            <h6 class="alert-heading">
+              <i class="fa fa-lightbulb mr-2"></i>
+              Information importante
+            </h6>
+            <p class="mb-1">
+              Cette action va créer une nouvelle assignation entre l'utilisateur sélectionné et l'affaire choisie.
+            </p>
+            <hr>
+            <p class="mb-0">
+              <small>
+                <i class="fa fa-warning mr-1"></i>
+                Vérifiez que l'utilisateur n'est pas déjà assigné à cette affaire.
+              </small>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button
+          type="submit"
+          class="btn btn-success"
+          [disabled]="myFormAdd.invalid || isLoading">
+          <i class="fa fa-check mr-2"></i>
+          <span *ngIf="!isLoading">Assigner</span>
+          <span *ngIf="isLoading">
+            <span class="spinner-border spinner-border-sm mr-2" role="status"></span>
+            Traitement...
+          </span>
+        </button>
+
+        <button
+          type="button"
+          class="btn btn-secondary"
+          (click)="onCancel()"
+          [disabled]="isLoading">
+          <i class="fa fa-times mr-2"></i>
+          Annuler
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

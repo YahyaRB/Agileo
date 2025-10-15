@@ -1,0 +1,600 @@
+<div class="section-body">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center">
+      <div class="header-action">
+        <h1 class="page-title">Dashboard</h1>
+        <ol class="breadcrumb page-breadcrumb">
+          <li class="breadcrumb-item"><a href="#">AGILEO</a></li>
+          <li class="breadcrumb-item"><a href="#">ACHATS</a></li>
+          <li class="breadcrumb-item active" aria-current="page">CONSOMMATION</li>
+        </ol>
+        &nbsp;
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row mx-1">
+  <div class="col-md-12">
+    <div class="card" [ngClass]="{'collapsed': isCollapsed, 'fullscreen': isFullscreen}">
+      <div class="card-header">
+        <h3 class="card-title">Liste des consommations</h3>
+        <div class="card-options d-flex align-items-center">
+          <small class="text-muted mr-3" *ngIf="currentUser && !isLoadingUser">
+          </small>
+          <a class="card-options-collapse text-blue" (click)="toggleCollapse()">
+            <i class="fe" [ngClass]="{'fe-chevron-up': !isCollapsed, 'fe-chevron-down': isCollapsed}"></i>
+          </a>
+          <a href="#" class="card-options-fullscreen" data-toggle="card-fullscreen"><i class="fe fe-maximize"></i></a>
+
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div *ngIf="isLoadingUser" class="text-center py-3">
+          <div class="spinner-border spinner-border-sm" role="status">
+            <span class="sr-only">Chargement des permissions...</span>
+          </div>
+          <small class="d-block mt-2">Vérification des permissions...</small>
+        </div>
+
+        <div *ngIf="!isLoadingUser">
+          <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+            <div class="d-flex align-items-center gap-2 flex-nowrap">
+              <div class="input-group border rounded-pill px-3 py-2 mr-2" style="min-width: 290px;">
+                   <span style="font-size: 20px; margin-right: 5px;">
+      <i class="fa fa-search"></i>
+    </span>
+                <input type="text" class="form-control border-0 p-0" placeholder="Chercher consommation par ..."
+                       style="box-shadow: none; outline: none;" [(ngModel)]="pfiltre">
+              </div>
+            </div>
+
+            <div class="btn-group">
+              <button *ngIf="canCreateConsommations()" type="button" class="btn btn-success">Options</button>
+              <button *ngIf="canCreateConsommations()" type="button" class="btn btn-success dropdown-toggle"
+                      data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <span class="caret"></span>
+                <span class="sr-only">Toggle Dropdown</span>
+              </button>
+              <ul *ngIf="canCreateConsommations()" class="dropdown-menu dropdown-menu-right mt-1">
+                <li style="min-width: 250px">
+                  <a type="button" (click)="ouvrirModalAvecDelay()" class="pl-3 py-1">
+                    <i class="fa fa-user-plus text-success"></i> Ajouter une consommation
+                  </a>
+                </li>
+              </ul>
+
+              <div *ngIf="!canCreateConsommations()" class="text-muted">
+                <small><i class="fa fa-lock"></i> Création non autorisée</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-striped mb-0 text-nowrap">
+              <thead>
+              <tr>
+                <th>ID
+                  <button class="btn btn-link p-0 border-0 text-decoration-none"
+                          style="background: transparent;"
+                          (click)="sortColumn('id')">
+                    <i class="fa"
+                       [ngClass]="{'fa-sort-alpha-asc': sort.field !== 'id' || sort.direction === 'asc',
+                     'fa-sort-alpha-desc': sort.field === 'id' && sort.direction === 'desc'}"></i>
+                  </button>
+                </th>
+
+                <th>Affaire
+                  <button class="btn btn-link p-0 border-0 text-decoration-none"
+                          style="background: transparent;"
+                          (click)="sortColumn('affaireCode')">
+                    <i class="fa"
+                       [ngClass]="{'fa-sort-alpha-asc': sort.field !== 'affaireCode' || sort.direction === 'asc',
+                     'fa-sort-alpha-desc': sort.field === 'affaireCode' && sort.direction === 'desc'}"></i>
+                  </button>
+                </th>
+
+                <th>Date Consommation
+                  <button class="btn btn-link p-0 border-0 text-decoration-none"
+                          style="background: transparent;"
+                          (click)="sortColumn('dateConsommation')">
+                    <i class="fa"
+                       [ngClass]="{'fa-sort-alpha-asc': sort.field !== 'dateConsommation' || sort.direction === 'asc',
+                     'fa-sort-alpha-desc': sort.field === 'dateConsommation' && sort.direction === 'desc'}"></i>
+                  </button>
+                </th>
+
+                <th>Créé par
+                  <button class="btn btn-link p-0 border-0 text-decoration-none"
+                          style="background: transparent;"
+                          (click)="sortColumn('createdBy')">
+                    <i class="fa"
+                       [ngClass]="{'fa-sort-alpha-asc': sort.field !== 'createdBy' || sort.direction === 'asc',
+                     'fa-sort-alpha-desc': sort.field === 'createdBy' && sort.direction === 'desc'}"></i>
+                  </button>
+                </th>
+
+                <th>Statut
+                  <button class="btn btn-link p-0 border-0 text-decoration-none"
+                          style="background: transparent;"
+                          (click)="sortColumn('statut')">
+                    <i class="fa"
+                       [ngClass]="{'fa-sort-alpha-asc': sort.field !== 'statut' || sort.direction === 'asc',
+                     'fa-sort-alpha-desc': sort.field === 'statut' && sort.direction === 'desc'}"></i>
+                  </button>
+                </th>
+
+                <th>Action</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr *ngFor="let consommation of listConsommations | psearch: pfiltre | paginate:{ itemsPerPage: tableSize, currentPage: page, totalItems: count }">
+                <td>
+                  <a *ngIf="consommation.statut !== 'Brouillon'"
+                     (click)="ouvrirModalDetails(consommation)"
+                     class="id-link cursor-pointer"
+                     title="Voir les détails">
+                    {{consommation.id}}
+                  </a>
+                  <a *ngIf="consommation.statut == 'Brouillon' && canModifyConsommationLines()"
+                     [routerLink]="['/consommations', consommation.id, 'add-ligne-consommation']"
+                     class="id-link"
+                     title="Gérer les lignes de consommation">
+                    {{consommation.id}}
+                  </a>
+                  <span *ngIf="consommation.statut == 'Brouillon' && !canModifyConsommationLines()"
+                        class="text-muted"
+                        title="Accès aux lignes non autorisé">
+                    {{ consommation.id}}
+                    <i class="fa fa-lock text-warning ml-1"></i>
+                  </span>
+                </td>
+                <td>
+                  <span class="text-dark">{{ consommation.affaireCode || consommation.chantier }}</span>
+                  <small class="d-block text-muted">{{ consommation.affaireLibelle }}</small>
+                </td>
+                <td>{{consommation.dateConsommation | date:'dd/MM/yyyy '}}</td>
+                <td>
+                  {{consommation.createdBy}}
+                  <i *ngIf="consommation.userLogin === currentUser?.login?.toString()"
+                     class="fa fa-user text-primary ml-1" title="Votre consommation"></i>
+                </td>
+
+                <td>
+                     <span class="badge"
+                          [ngClass]="{
+                            'badge-warning': consommation.statut === 'Envoyé',
+                            'badge-success': consommation.statut === 'Reçu',
+                            'badge-info': consommation.statut === 'En cours',
+                            'badge-secondary': !consommation.statut || consommation.statut === 'Brouillon'
+                          }">
+                      {{consommation.statut || 'Brouillon'}}
+                    </span>
+                </td>
+                <td>
+                  <div class="btn-group">
+                    <button type="button"
+                            class="btn btn-outline-info btn-sm"
+                            (click)="ouvrirModalDetails(consommation)"
+                            title="Voir détails">
+                      <i class="fa fa-eye" aria-hidden="true"></i>
+                    </button>
+
+                    <button *ngIf="consommation.statut == 'Brouillon' && canSendConsommations()"
+                            type="button"
+                            class="btn btn-outline-success btn-sm ml-1"
+                            (click)="changerStatutConsommation(consommation, 'Envoyé')"
+                            title="Envoyer la consommation">
+                      <i class="fa fa-paper-plane" aria-hidden="true"></i>
+                    </button>
+
+                    <button *ngIf="consommation.statut == 'Brouillon' && canModifyConsommations()"
+                            type="button"
+                            class="btn btn-outline-warning btn-sm ml-1"
+                            (click)="ouvrirModalUpdateAvecDelay(consommation)"
+                            title="Modifier la consommation">
+                      <i class="fa fa-pencil" aria-hidden="true"></i>
+                    </button>
+
+                    <button *ngIf="consommation.statut == 'Brouillon' && canDeleteConsommations()"
+                            type="button"
+                            class="btn btn-outline-danger btn-sm ml-1"
+                            (click)="deleteConsommation(consommation)"
+                            title="Supprimer la consommation">
+                      <i class="fa fa-trash" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <button class="d-none" data-toggle="modal" data-target="#addModal"></button>
+                  <button class="d-none" data-toggle="modal" data-target="#updateModal"></button>
+                  <button class="d-none" data-toggle="modal" data-target="#detailsModal"></button>
+                  <button class="d-none" data-toggle="modal" data-target="#confirmSendModal"></button>
+                  <button class="d-none" data-toggle="modal" data-target="#confirmDeleteModal"></button>
+                </td>
+              </tr>
+
+              <tr *ngIf="listConsommations && listConsommations.length === 0">
+                <td colspan="6" class="text-center py-4">
+                  <div class="text-muted">
+                    <i class="fa fa-inbox fa-2x mb-2"></i>
+                    <p *ngIf="canViewAllConsommations()">Aucune consommation trouvée</p>
+                    <p *ngIf="!canViewAllConsommations()">Vous n'avez créé aucune consommation</p>
+                  </div>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+
+            <div class="mt-3 d-flex justify-content-center">
+              <pagination-controls
+                previousLabel="Précédent"
+                nextLabel="Suivant"
+                (pageChange)="onTableDataChange($event)">
+              </pagination-controls>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button #btnFake class="d-none" data-toggle="modal" data-target="#addModal"></button>
+  <button #btnFake class="d-none" data-toggle="modal" data-target="#updateModal"></button>
+  <button #btnFake class="d-none" data-toggle="modal" data-target="#deleteModal"></button>
+  <button #btnFake class="d-none" data-toggle="modal" data-target="#detailsModal"></button>
+</div>
+
+<div class="modal fade" id="addModal" tabindex="-1" role="dialog" aria-hidden="true" *ngIf="canCreateConsommations()">
+  <app-add-consommation
+    (ajoutEffectue)="loadConsommations()"
+    *ngIf="showModal"
+  ></app-add-consommation>
+</div>
+
+<div class="modal fade" id="detailsModal" tabindex="-1" role="dialog" aria-labelledby="detailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h4 class="modal-title" id="detailsModalLabel">
+          <i class="fa fa-info-circle"></i>
+          Détails de la Consommation #{{selectedConsommation?.id}}
+        </h4>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body" *ngIf="selectedConsommation">
+        <div class="row mb-4">
+          <div class="col-md-12">
+            <div class="card">
+              <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fa fa-info"></i> Informations Générales</h5>
+              </div>
+              <div class="card-body">
+                <table class="table table-borderless mb-0">
+                  <tr>
+                    <td><strong>Affaire:</strong></td>
+                    <td>
+                      <span class="badge badge-info">{{selectedConsommation.affaireCode+" - "+selectedConsommation?.affaireLibelle}}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><strong>Date de consommation:</strong></td>
+                    <td>{{selectedConsommation.dateConsommation | date:'dd/MM/yyyy'}}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Créé par:</strong></td>
+                    <td>
+                     {{selectedConsommation.createdBy}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><strong>Statut:</strong></td>
+
+                    <td>
+                      <span class="badge"
+                            [ngClass]="selectedConsommation.statut === 'Envoyé' ? 'badge-warning' : selectedConsommation.statut === 'Reçu' ? 'badge-success' : 'badge-secondary'">
+                        {{selectedConsommation.statut || 'Brouillon'}}
+                      </span>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+              <i class="fa fa-list"></i>
+              Articles Consommés
+              <span class="badge badge-light text-dark ml-2" *ngIf="lignesConsommation">
+        {{lignesConsommation.length}} article(s)
+      </span>
+            </h5>
+          </div>
+          <div class="card-body">
+            <!-- CORRECTION: Améliorer l'affichage du loading -->
+            <div *ngIf="loadingLignes" class="text-center py-4">
+              <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Chargement...</span>
+              </div>
+              <p class="mt-2 text-muted">Chargement des articles consommés...</p>
+            </div>
+
+            <!-- CORRECTION: Affichage conditionnel amélioré -->
+            <div *ngIf="!loadingLignes " class="table-responsive">
+
+              <!-- Cas: Articles trouvés -->
+              <div *ngIf="lignesConsommation && lignesConsommation.length > 0">
+                <table class="table table-sm table-striped mb-0">
+                  <thead class="thead-light">
+                  <tr>
+                    <th>Référence</th>
+                    <th>Désignation Article</th>
+                    <th class="text-center">Quantité Consommée</th>
+                    <th>Unité</th>
+                    <th>Famille 1</th>
+                    <th>Famille 2</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr *ngFor="let ligne of lignesConsommation">
+                    <td class="font-weight-bold text-primary">
+                      <i class="fa fa-barcode"></i> {{ligne.referenceArticle}}
+                    </td>
+                    <td>
+                      <i class="fa fa-cube text-muted"></i>
+                      {{ligne.designationArticle}}
+                    </td>
+                    <td class="text-center">
+              <span class="badge badge-danger badge-lg">
+                {{ligne.quantite}}
+              </span>
+                    </td>
+                    <td>
+                      <span class="text-info">{{ligne.unite}}</span>
+                    </td>
+                    <td>
+                      <small class="text-muted">{{ligne.familleStatistique1 || '-'}}</small>
+                    </td>
+                    <td>
+                      <small class="text-muted">{{ligne.familleStatistique2 || '-'}}</small>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Cas: Aucun article -->
+              <div *ngIf="!lignesConsommation || lignesConsommation.length === 0"
+                   class="alert alert-info text-center">
+                <i class="fa fa-info-circle fa-2x mb-2"></i>
+                <h6>Aucun article consommé</h6>
+                <p class="mb-0 text-muted">Cette consommation ne contient aucun article pour le moment.</p>
+              </div>
+            </div>
+
+            <!-- Cas: Erreur de chargement -->
+            <div *ngIf="errorLignes && !loadingLignes" class="alert alert-warning text-center">
+              <i class="fa fa-exclamation-triangle fa-2x mb-2"></i>
+              <h6>Erreur de chargement</h6>
+              <p class="mb-0">Impossible de charger les articles de cette consommation.</p>
+              <button class="btn btn-sm btn-outline-warning mt-2"
+                      (click)="loadLignesConsommation(selectedConsommation!.id!)">
+                <i class="fa fa-refresh"></i> Réessayer
+              </button>
+            </div>
+
+
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <!-- ... autres boutons ... -->
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+          <i class="fa fa-times"></i>
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="confirmSendModal" tabindex="-1" role="dialog" aria-labelledby="confirmSendModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="confirmSendModalLabel">
+          <i class="fe fe-alert-triangle mr-2"></i>
+          Action critique
+        </h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-start">
+          <i class="fe fe-alert-octagon text-danger mr-3" style="font-size: 24px;"></i>
+          <div>
+            <p class="mb-1">Voulez-vous vraiment envoyer cette consommation ?</p>
+            <small class="text-muted">Cette action est <strong>irréversible</strong>.
+              Une fois envoyée, la consommation ne pourra plus être modifiée.</small>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+          Annuler
+        </button>
+        <button type="button" class="btn btn-danger" (click)="envoyerConsommationConfirmed()">
+          <i class="fe fe-send mr-1"></i>Confirmer l'envoi
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" role="dialog" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="confirmDeleteModalLabel">
+          <i class="fe fe-alert-triangle mr-2"></i>
+          Action critique
+        </h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-start">
+          <i class="fe fe-alert-octagon text-danger mr-3" style="font-size: 24px;"></i>
+          <div>
+            <p class="mb-1">Voulez-vous vraiment supprimer cette consommation ?</p>
+            <small class="text-muted">Cette action est <strong>irréversible</strong>.</small>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+          Annuler
+        </button>
+        <button type="button" class="btn btn-danger" (click)="suppressionConsommationConfirmed()">
+          Confirmer la suppression
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Version simplifiée du modal de modification qui résout les problèmes de validation -->
+
+<!-- Modal de modification corrigé pour afficher correctement l'affaire -->
+
+<!-- list-consommation.component.html - Modifier UNIQUEMENT le modal updateModal -->
+
+<!-- Remplacer le modal updateModal actuel par ceci -->
+<div class="modal fade" id="updateModal" tabindex="-1" role="dialog" aria-labelledby="updateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-white">
+        <h4 class="modal-title" id="updateModalLabel">
+          <i class="fa fa-edit"></i>
+          Modifier la Consommation #{{consommationToUpdate?.id}}
+        </h4>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <form #updateForm="ngForm" (ngSubmit)="updateConsommationInfo()" *ngIf="consommationToUpdate">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="font-weight-bold mb-2">
+              <i class="fa fa-building text-primary"></i> Affaire
+            </label>
+
+            <div class="alert alert-info mb-3" *ngIf="selectedAffaire">
+              <div class="d-flex align-items-center">
+                <i class="fa fa-info-circle mr-2"></i>
+                <div>
+                  <strong>Affaire actuelle :</strong>
+                  <span class="badge badge-primary ml-2">
+                    {{selectedAffaire.code || selectedAffaire.affaire}} - {{selectedAffaire.libelle || selectedAffaire.nom}}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="consommationHasLines">
+              <div class="alert alert-warning">
+                <i class="fa fa-lock mr-2"></i>
+                <strong>Modification limitée :</strong>
+                L'affaire ne peut pas être modifiée car cette consommation contient déjà des articles consommés.
+              </div>
+            </div>
+
+            <div *ngIf="!consommationHasLines">
+              <label class="mb-2">Changer d'affaire (optionnel) :</label>
+              <ng-select
+                class="w-100"
+                placeholder="Sélectionnez une nouvelle affaire"
+                [(ngModel)]="selectedAffaire"
+                (change)="onAffaireChangeUpdate($event)"
+                name="affaire"
+                [clearable]="false"
+                [searchable]="true"
+                appendTo="body">
+
+                <ng-option *ngFor="let affaire of availableAffaires" [value]="affaire">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span><strong>{{affaire.code || affaire.affaire}}</strong> - {{affaire.libelle || affaire.nom}}</span>
+                    <small class="text-success" *ngIf="(affaire.code === consommationToUpdate?.affaireCode) || (affaire.affaire === consommationToUpdate?.affaireCode)">
+                      <i class="fa fa-check-circle"></i> Actuelle
+                    </small>
+                  </div>
+                </ng-option>
+              </ng-select>
+
+              <div *ngIf="availableAffaires.length === 0" class="alert alert-warning mt-2">
+                <i class="fa fa-exclamation-triangle"></i>
+                Aucune affaire supplémentaire disponible pour vos permissions.
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="font-weight-bold mb-2">
+              <i class="fa fa-calendar text-success"></i> Date de consommation
+            </label>
+            <input type="date" class="form-control" [(ngModel)]="consommationToUpdate.dateConsommation" name="dateConsommation" required>
+            <small class="form-text text-muted">Date actuelle : {{consommationToUpdate.dateConsommation}}</small>
+          </div>
+
+          <div class="card bg-light mt-3">
+            <div class="card-header">
+              <h6 class="mb-0"><i class="fa fa-info text-primary"></i> Informations de la consommation</h6>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-4">
+                  <strong>Statut :</strong>
+                  <span class="badge" [ngClass]="{'badge-secondary': consommationToUpdate?.statut === 'Brouillon', 'badge-success': consommationToUpdate?.statut === 'Envoyé', 'badge-info': consommationToUpdate?.statut === 'Reçu'}">
+                    {{consommationToUpdate?.statut || 'Brouillon'}}
+                  </span>
+                </div>
+                <div class="col-md-4">
+                  <strong>Créé par :</strong> {{consommationToUpdate?.createdBy}}
+                </div>
+                <div class="col-md-4">
+                  <strong>Articles :</strong>
+                  <span class="text-success" *ngIf="consommationHasLines"><i class="fa fa-check-circle"></i> Contient des articles</span>
+                  <span class="text-muted" *ngIf="!consommationHasLines && !checkingLines"><i class="fa fa-circle-o"></i> Aucun article</span>
+                  <span class="text-info" *ngIf="checkingLines"><i class="fa fa-spinner fa-spin"></i> Vérification...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <input type="hidden" [(ngModel)]="consommationToUpdate.affaireId" name="affaireId">
+          <input type="hidden" [(ngModel)]="consommationToUpdate.affaireCode" name="affaireCode">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">
+            <i class="fa fa-times"></i> Annuler
+          </button>
+          <button type="submit" class="btn btn-warning" [disabled]="checkingLines || !selectedAffaire || !consommationToUpdate.dateConsommation">
+            <span *ngIf="checkingLines" class="spinner-border spinner-border-sm mr-1"></span>
+            <i class="fa fa-save" *ngIf="!checkingLines"></i>
+            {{checkingLines ? 'Vérification...' : 'Enregistrer les modifications'}}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

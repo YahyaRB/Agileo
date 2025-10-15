@@ -1,0 +1,22 @@
+
+<div class="modal-dialog modal-dialog-centered">
+  <div class="modal-content bg-facebook">
+    <div class="modal-header">
+      <h5 class="modal-title text-success">Suppression</h5>
+      <button type="button" class="close" data-dismiss="modal" aria-label="Fermer" #closebutton>
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+    <form name="form" (ngSubmit)="deleteAffaire()">
+      <div class="modal-body fs-6 text-dark">
+
+        Voulez vous supprimer l'affaire avec le code <strong *ngIf="affaireToDelete" class="text-danger">{{affaireToDelete.code}}</strong> et la designation <strong *ngIf="affaireToDelete" class="text-danger">{{affaireToDelete.nom}}</strong>
+
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-danger" >Supprimer</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>

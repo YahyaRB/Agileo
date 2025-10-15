@@ -1,0 +1,890 @@
+/*
+!* Ajoutez ces styles à votre fichier list-receptions.component.css *!
+
+!* Modal avec hauteur fixe et scroll *!
+#detailsModal .modal-dialog {
+  max-width: 80%;
+  width: 80%;
+  height: 90vh;
+  margin: 1.75rem auto;
+}
+
+#detailsModal .modal-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+#detailsModal .modal-header {
+  flex-shrink: 0; !* Le header ne se réduit pas *!
+  border-bottom: 1px solid #dee2e6;
+}
+
+#detailsModal .modal-body {
+  flex: 1; !* Prend tout l'espace disponible *!
+  overflow-y: auto; !* Scroll vertical *!
+  overflow-x: hidden; !* Pas de scroll horizontal *!
+  padding: 1rem;
+}
+
+#detailsModal .modal-footer {
+  flex-shrink: 0; !* Le footer ne se réduit pas *!
+  border-top: 1px solid #dee2e6;
+}
+
+!* Style pour la scrollbar (optionnel - pour webkit browsers) *!
+#detailsModal .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+#detailsModal .modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+#detailsModal .modal-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+#detailsModal .modal-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+!* Assurer que les cartes dans le modal s'affichent correctement *!
+#detailsModal .modal-body .card {
+  margin-bottom: 1rem;
+}
+
+#detailsModal .modal-body .row {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+
+
+
+!* Pour les petits écrans, ajuster la taille *!
+@media (max-width: 768px) {
+  #detailsModal .modal-dialog {
+    width: 95%;
+    height: 95vh;
+    margin: 0.5rem auto;
+  }
+
+  #detailsModal .modal-body {
+    padding: 0.75rem;
+  }
+}
+
+!* Style existant pour les liens ID *!
+.id-link {
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  min-width: 35px;
+  justify-content: center;
+  display: flex;
+  color: #007bff;
+}
+
+.id-link:hover {
+  transform: scale(1.05);
+  text-decoration: none;
+  color: #0056b3;
+}
+
+!* Flèche qui apparaît au hover *!
+.id-link::after {
+  content: '→';
+  font-size: 0.8rem;
+  opacity: 0;
+  transform: translateX(-5px);
+  transition: all 0.3s ease;
+}
+
+.id-link:hover::after {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+!* Animation de clic *!
+.id-link:active {
+  transform: scale(0.95);
+}
+
+.badge {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  border-radius: 0.375rem;
+}
+
+.badge-info {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border-radius: 0.2rem;
+}
+th button {
+  border: none;
+  background-color: white;
+}
+th button i {
+  color: #108efb;
+}
+
+
+.custom-file-upload {
+  border: 2px dashed #28a745;
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #f8f9fa;
+}
+
+.custom-file-upload:hover {
+  border-color: #1e7e34;
+  background-color: #e8f5e8;
+}
+
+.upload-icon {
+  font-size: 24px;
+  margin-right: 10px;
+}
+
+.piece-item {
+  background-color: #f8f9fa;
+  border-radius: 5px;
+  transition: background-color 0.2s ease;
+}
+
+.piece-item:hover {
+  background-color: #e9ecef;
+}
+
+.badge-success {
+  font-size: 10px;
+}
+
+
+.piece-container {
+  margin: 20px;
+}
+
+.btn-download, .btn-view {
+  margin-right: 10px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-download {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-view {
+  background-color: #007bff;
+  color: white;
+}
+
+.piece-viewer {
+  margin-top: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.piece-viewer {
+  margin-top: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  position: relative;
+}
+
+.viewer-header {
+  display: flex;
+  justify-content: flex-end;
+  background: #f8f9fa;
+  border-bottom: 1px solid #ddd;
+  padding: 6px;
+}
+
+.btn-close {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-close:hover {
+  background: #c82333;
+}
+
+*/
+/* ==================== STYLES POUR L'UPLOAD DE PIÈCES JOINTES RÉCEPTIONS ==================== */
+
+/* Zone d'upload principale */
+.upload-zone {
+  border: 2px dashed #28a745;
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-zone:hover {
+  border-color: #20c997;
+  background: linear-gradient(135deg, #e8f5e8 0%, #f0fff0 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(40, 167, 69, 0.15);
+}
+
+.upload-zone.drag-over {
+  border-color: #007bff;
+  background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%);
+  animation: pulse-border 1.5s infinite;
+}
+
+/* Animation pour drag over */
+@keyframes pulse-border {
+  0% { border-color: #007bff; }
+  50% { border-color: #0056b3; }
+  100% { border-color: #007bff; }
+}
+
+/* Effet de brillance sur la zone d'upload */
+.upload-zone::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+  transform: rotate(45deg);
+  transition: all 0.5s;
+  opacity: 0;
+}
+
+.upload-zone:hover::before {
+  animation: shine 2s infinite;
+}
+
+@keyframes shine {
+  0% { transform: rotate(45deg) translate(-100%, -100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: rotate(45deg) translate(100%, 100%); opacity: 0; }
+}
+
+/* Icônes et texte de la zone d'upload */
+.upload-zone i {
+  transition: all 0.3s ease;
+}
+
+.upload-zone:hover i {
+  transform: scale(1.1);
+  color: #20c997 !important;
+}
+
+.upload-zone h5 {
+  color: #2c3e50;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.upload-zone .text-muted {
+  color: #6c757d !important;
+  font-size: 14px;
+}
+
+/* Cards de fichiers */
+.card.border-success {
+  border: 2px solid #28a745 !important;
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.1);
+  transition: all 0.3s ease;
+}
+
+.card.border-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(40, 167, 69, 0.2);
+}
+
+.card.border-primary {
+  border: 2px solid #007bff !important;
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.card.border-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 123, 255, 0.2);
+}
+
+/* Métadonnées des fichiers */
+.file-metadata {
+  margin-top: 10px;
+}
+
+.file-metadata small {
+  line-height: 1.4;
+  margin-bottom: 2px;
+}
+
+.file-metadata i {
+  width: 12px;
+  margin-right: 5px;
+  color: #6c757d;
+}
+
+/* Badges */
+.badge-sm {
+  font-size: 0.75em;
+  padding: 0.25em 0.5em;
+}
+
+.badge-success {
+  background: linear-gradient(45deg, #28a745, #20c997);
+  border: none;
+}
+
+.badge-primary {
+  background: linear-gradient(45deg, #007bff, #0056b3);
+  border: none;
+}
+
+.badge-info {
+  background: linear-gradient(45deg, #17a2b8, #138496);
+  border: none;
+}
+
+/* Boutons de fichiers */
+.btn-outline-success:hover {
+  background-color: #28a745;
+  border-color: #28a745;
+  transform: translateY(-1px);
+}
+
+.btn-outline-danger:hover {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  transform: translateY(-1px);
+}
+
+.btn-outline-primary:hover {
+  background-color: #007bff;
+  border-color: #007bff;
+  transform: translateY(-1px);
+}
+
+/* Groupes de boutons */
+.btn-group .btn {
+  transition: all 0.2s ease;
+}
+
+.btn-group .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Alertes personnalisées */
+.alert {
+  border-radius: 10px;
+  border: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.alert-warning {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  color: #856404;
+  border-left: 4px solid #ffc107;
+}
+
+.alert-info {
+  background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+  color: #0c5460;
+  border-left: 4px solid #17a2b8;
+}
+
+.alert i {
+  margin-right: 8px;
+}
+
+/* Card header personnalisé */
+.card-header {
+  border-bottom: 2px solid #dee2e6;
+  border-radius: 10px 10px 0 0 !important;
+}
+
+.card-header h6 {
+  margin-bottom: 0;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.card-header i {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+/* Body des cards */
+.card-body {
+  border-radius: 0 0 10px 10px;
+}
+
+/* Titre des cartes de fichiers */
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+
+.card-title i {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+/* Footer des cards */
+.card-footer {
+  border-top: 1px solid #dee2e6;
+  border-radius: 0 0 8px 8px;
+}
+
+/* Messages d'état */
+.text-center.py-4 {
+  padding: 30px 0 !important;
+}
+
+.text-center.py-4 i {
+  opacity: 0.5;
+  margin-bottom: 15px;
+}
+
+/* Loading states */
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Footer du modal */
+.modal-footer {
+  border-top: 2px solid #dee2e6;
+  padding: 20px;
+}
+
+.modal-footer .btn {
+  min-width: 120px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.modal-footer .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Informations dans le footer */
+.modal-footer small {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.modal-footer .text-success {
+  color: #28a745 !important;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .upload-zone {
+    padding: 30px 15px;
+  }
+
+  .upload-zone h5 {
+    font-size: 18px;
+  }
+
+  .upload-zone i {
+    font-size: 2rem !important;
+  }
+
+  .card-title {
+    font-size: 13px;
+  }
+
+  .btn-group .btn {
+    font-size: 12px;
+    padding: 5px 8px;
+  }
+}
+
+@media (max-width: 576px) {
+  .col-lg-4 {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .card {
+    margin-bottom: 15px;
+  }
+
+  .upload-zone {
+    padding: 25px 10px;
+  }
+}
+
+/* Animations d'apparition */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card {
+  animation: fadeInUp 0.5s ease;
+}
+
+/* Icônes de fichiers colorées */
+.fa-file-pdf-o { color: #dc3545 !important; }
+.fa-file-word-o { color: #0066cc !important; }
+.fa-file-excel-o { color: #28a745 !important; }
+.fa-file-image-o { color: #17a2b8 !important; }
+.fa-file-o { color: #6c757d !important; }
+
+/* Hover sur les icônes */
+.card-title i {
+  transition: transform 0.2s ease;
+}
+
+.card:hover .card-title i {
+  transform: scale(1.1);
+}
+
+/* Style pour les compteurs */
+.badge {
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+/* Style pour les messages d'info */
+.text-info small {
+  font-weight: 500;
+}
+
+.text-info i {
+  margin-right: 5px;
+}
+/* ==================== STEPPER POUR MODAL UPDATE (4 STEPS) ==================== */
+.stepper-wrapper {
+  display: flex;
+  justify-content: space-between;
+  margin: 20px 0;
+  padding: 0 30px;
+  position: relative;
+}
+
+.stepper-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.stepper-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background-color: #e0e0e0;
+  top: 20px;
+  left: 50%;
+  z-index: -1;
+}
+
+.stepper-item.completed:not(:last-child)::after {
+  background-color: #28a745;
+}
+
+.step-counter {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  margin-bottom: 6px;
+  color: #666;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.stepper-item.active .step-counter {
+  background-color: #007bff;
+  color: white;
+  box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.stepper-item.completed .step-counter {
+  background-color: #28a745;
+  color: white;
+}
+
+.step-name {
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  margin-top: 5px;
+}
+
+.stepper-item.active .step-name {
+  color: #007bff;
+  font-weight: 600;
+}
+
+.stepper-item.completed .step-name {
+  color: #28a745;
+}
+
+/* Responsive stepper */
+@media (max-width: 768px) {
+  .step-name {
+    font-size: 10px;
+  }
+
+  .step-counter {
+    width: 35px;
+    height: 35px;
+    font-size: 14px;
+  }
+
+  .stepper-wrapper {
+    padding: 0 10px;
+  }
+}
+
+/* ==================== STEP CONTENT ==================== */
+.step-content {
+  animation: fadeIn 0.3s ease-in;
+  min-height: 300px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.step-title {
+  color: #007bff;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+/* ==================== BON DE COMMANDE DETAILS (STEP 2) ==================== */
+.bc-details-card {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.bc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.bc-numero {
+  margin: 0;
+  font-size: 20px;
+  color: #007bff;
+}
+
+/* ==================== BON DE COMMANDE SELECT ==================== */
+.bon-commande-option {
+  padding: 5px 0;
+}
+
+.bc-numero {
+  font-size: 14px;
+  color: #007bff;
+}
+
+.bc-fournisseur {
+  font-size: 12px;
+}
+
+/* ==================== RÉCAPITULATIF (STEP 3) ==================== */
+.recap-box {
+  background: #e7f3ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.recap-item {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.recap-item:last-child {
+  margin-bottom: 0;
+}
+
+.recap-item strong {
+  color: #007bff;
+  margin-right: 8px;
+}
+.stepper-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stepper-item.disabled .step-counter {
+  background-color: #6c757d !important;
+}
+
+.stepper-item.disabled .step-name {
+  color: #6c757d;
+}
+
+/* Style pour les badges de statut */
+.badge-secondary {
+  background-color: #6c757d;
+}
+
+/* Style pour la recap-box */
+.recap-box {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.recap-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.recap-item:last-child {
+  border-bottom: none;
+}
+
+.recap-item strong {
+  display: inline-block;
+  min-width: 150px;
+  color: #495057;
+}
+/* ==================== GESTION FULLSCREEN ET MODALS ==================== */
+
+/* Z-index pour les modals en mode fullscreen */
+body.fullscreen-active .modal {
+  z-index: 10050 !important;
+}
+
+body.fullscreen-active .modal-backdrop {
+  z-index: 10040 !important;
+}
+
+/* Backdrop personnalisé pour le fullscreen */
+.fullscreen-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.fullscreen-backdrop.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Assurer la priorité des modals */
+#addModal,
+#updateModal,
+#detailsModal,
+#confirmSendModal,
+#confirmDeleteModal {
+  z-index: 10055 !important;
+}
+
+/* Correction pour ng-select dans les modals en fullscreen */
+::ng-deep body.fullscreen-active .ng-dropdown-panel {
+  z-index: 10060 !important;
+}
+
+::ng-deep .modal .ng-dropdown-panel {
+  z-index: 1061 !important;
+}
+
+/* Pointer events pour les modals */
+.modal {
+  pointer-events: none;
+}
+
+.modal.show {
+  pointer-events: auto;
+  display: block !important;
+}
+
+.modal-backdrop.show {
+  pointer-events: auto;
+}
+
+.modal-dialog {
+  pointer-events: auto;
+}
+
+.modal-content {
+  pointer-events: auto;
+}

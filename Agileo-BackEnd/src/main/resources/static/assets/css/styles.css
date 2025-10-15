@@ -1,0 +1,244 @@
+/* ========== STYLES EXISTANTS ========== */
+.card.collapsed .card-body {
+  display: none !important;
+}
+
+.card.collapsed .card-header .fa-chevron-up {
+  transform: rotate(180deg);
+}
+
+.card.fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.card.fullscreen .card-body {
+  height: calc(100vh - 80px) !important;
+  overflow: auto !important;
+}
+
+.card-options-collapse,
+.card-options-fullscreen {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 8px;
+  border-radius: 4px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #007bff;
+}
+
+.card-options-collapse:hover,
+.card-options-fullscreen:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+  text-decoration: none;
+  color: #0056b3;
+}
+
+.card-options-collapse i {
+  transition: transform 0.3s ease;
+}
+
+.card.collapsed .card-options-collapse i {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 768px) {
+  .card.fullscreen {
+    padding: 0;
+  }
+
+  .card.fullscreen .card-body {
+    height: calc(100vh - 60px) !important;
+    padding: 10px;
+  }
+}
+
+th button {
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  padding: 2px 5px;
+  transition: background-color 0.2s ease;
+}
+
+th button:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+  border-radius: 3px;
+}
+
+th button i {
+  color: #108efb;
+  transition: color 0.2s ease;
+}
+
+th button:hover i {
+  color: #0056b3;
+}
+
+.id-link {
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  min-width: 35px;
+  justify-content: center;
+  display: flex;
+  color: #007bff;
+}
+
+.id-link:hover {
+  transform: scale(1.05);
+  text-decoration: none;
+  color: #0056b3;
+}
+
+.id-link::after {
+  content: '→';
+  font-size: 0.8rem;
+  opacity: 0;
+  transform: translateX(-5px);
+  transition: all 0.3s ease;
+}
+
+.id-link:hover::after {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.id-link:active {
+  transform: scale(0.95);
+}
+
+/* ========== NOUVEAUX STYLES POUR NG-SELECT ========== */
+
+/* Styles globaux pour tous les ng-select dans les tableaux */
+table ng-select,
+.table ng-select {
+  min-width: 280px !important;
+  width: 100% !important;
+}
+
+table ng-select .ng-select-container,
+.table ng-select .ng-select-container {
+  min-height: 40px !important;
+  border-radius: 4px !important;
+  border: 1px solid #ced4da !important;
+}
+
+table ng-select .ng-value-container,
+.table ng-select .ng-value-container {
+  padding: 6px 12px !important;
+}
+
+table ng-select .ng-placeholder,
+.table ng-select .ng-placeholder {
+  font-size: 14px !important;
+  color: #6c757d !important;
+}
+
+/* Menu déroulant des ng-select dans les tableaux */
+table ng-select .ng-dropdown-panel,
+.table ng-select .ng-dropdown-panel {
+  min-width: 350px !important;
+  max-width: 600px !important;
+  z-index: 1050 !important;
+}
+
+table ng-select .ng-option,
+.table ng-select .ng-option {
+  padding: 10px 15px !important;
+  font-size: 14px !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  line-height: 1.4 !important;
+}
+
+table ng-select .ng-option:hover,
+.table ng-select .ng-option:hover {
+  background-color: #e9ecef !important;
+}
+
+table ng-select .ng-option.ng-option-selected,
+.table ng-select .ng-option.ng-option-selected {
+  background-color: #007bff !important;
+  color: white !important;
+}
+
+/* Style pour la classe custom-width si utilisée */
+ng-select.custom-width,
+.custom-width ng-select {
+  min-width: 280px !important;
+  width: 100% !important;
+}
+
+/* Amélioration de la lisibilité dans les cellules de tableau */
+table td ng-select,
+.table td ng-select {
+  display: block !important;
+}
+
+/* Assurer que le dropdown s'affiche au-dessus des autres éléments */
+.ng-dropdown-panel {
+  z-index: 1050 !important;
+}
+
+/* Style pour les ng-select désactivés */
+table ng-select.ng-select-disabled .ng-select-container,
+.table ng-select.ng-select-disabled .ng-select-container {
+  background-color: #e9ecef !important;
+  cursor: not-allowed !important;
+}
+
+/* Styles pour le ng-select de filtrage au-dessus du tableau */
+.form-inline ng-select,
+.d-flex ng-select,
+.justify-content-between ng-select {
+  min-width: 300px !important;
+  flex-grow: 1 !important;
+}
+
+.form-inline ng-select .ng-select-container,
+.d-flex ng-select .ng-select-container,
+.justify-content-between ng-select .ng-select-container {
+  min-height: 38px !important;
+  border-radius: 4px !important;
+}
+
+/* Assurer que le ng-select et le bouton sont sur la même ligne */
+.form-inline,
+.d-flex.align-items-center {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+/* Amélioration pour mobile */
+@media (max-width: 768px) {
+  table ng-select,
+  .table ng-select {
+    min-width: 200px !important;
+  }
+
+  table ng-select .ng-dropdown-panel,
+  .table ng-select .ng-dropdown-panel {
+    min-width: 250px !important;
+  }
+
+  .form-inline ng-select,
+  .d-flex ng-select {
+    min-width: 200px !important;
+  }
+}

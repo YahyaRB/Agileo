@@ -1,0 +1,111 @@
+<div id="header_top" class="header_top">
+  <div class="container">
+    <div class="hleft">
+      <a class="header-brand mt-4" routerLink="/Acceuil">
+        <img src="./assets/images/logos/logo-icon.png">
+      </a>
+      <div class="dropdown">
+        <a href="javascript:void(0)" class="nav-link icon menu_toggle"><i class="fe fe-align-center"></i></a>
+        <a href="#" class="nav-link icon"><i class="fe fe-search" data-toggle="tooltip" data-placement="right" title="Search..."></i></a>
+        <a href="#" class="nav-link icon app_inbox"><i class="fe fe-inbox" data-toggle="tooltip" data-placement="right" title="Inbox"></i></a>
+        <a href="#" class="nav-link icon app_file xs-hide"><i class="fe fe-folder" data-toggle="tooltip" data-placement="right" title="File Manager"></i></a>
+        <a href="#" class="nav-link icon xs-hide"><i class="fe fe-share-2" data-toggle="tooltip" data-placement="right" title="Social Media"></i></a>
+        <a href="javascript:void(0)" class="nav-link icon theme_btn"><i class="fe fe-feather"></i></a>
+        <!-- Bouton settingbar supprimé -->
+      </div>
+    </div>
+    <div class="hright">
+      <!-- Bouton right_tab supprimé pour masquer le toggle de la rightbar -->
+      <a href="login.html" class="nav-link icon settingbar"><i class="fe fe-power"></i></a>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHTBAR COMPLÈTEMENT SUPPRIMÉE - Les éléments ci-dessous ont été retirés -->
+<!--
+<div id="rightsidebar" class="right_sidebar">...</div>
+<div class="theme_div">...</div>
+<app-right-tab></app-right-tab>
+-->
+
+<!-- Start Main leftbar navigation -->
+<div id="left-sidebar" class="sidebar" [class.collapsed]="isCollapsed">
+  <div class="brand-header">
+    <div class="brand-content">
+      <img alt="" src="assets/images/logos/logo3.png" width="160">
+    </div>
+  </div>
+
+  <!-- Indicateur de chargement -->
+  <div *ngIf="isLoading" class="text-center p-3">
+    <div class="spinner-border spinner-border-sm" role="status">
+      <span class="sr-only">Chargement...</span>
+    </div>
+    <small class="d-block mt-2">Chargement des permissions...</small>
+  </div>
+
+  <!-- Message d'erreur si pas d'utilisateur -->
+  <div *ngIf="!isLoading && !currentUser" class="alert alert-warning m-3" role="alert">
+    <small><i class="fa fa-exclamation-triangle"></i> Impossible de charger les données utilisateur</small>
+  </div>
+
+  <ul class="nav nav-tabs">
+    <li class="nav-item">
+      <a class="nav-link active" data-toggle="tab" href="#menu-uni"></a>
+    </li>
+  </ul>
+
+  <div class="tab-pane fade show active" id="menu-uni" role="tabpanel">
+    <nav class="sidebar-nav">
+      <ul class="metismenu">
+        <!-- Dashboard - toujours accessible -->
+        <li class="active">
+          <a routerLink="/Acceuil">
+            <i class="fa fa-dashboard"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+
+        <!-- Utilisateurs -->
+        <li *ngIf="canAccessUtilisateurs()">
+          <a routerLink="/Utilisateurs" data-tooltip="Utilisateurs">
+            <i class="fa fa-user-circle-o"></i>
+            <span>Utilisateurs</span>
+          </a>
+        </li>
+
+        <!-- Affaires -->
+        <li>
+          <a routerLink="/Affaires" data-tooltip="Affaires">
+            <i class="fa fa-black-tie"></i>
+            <span>Affaires</span>
+          </a>
+        </li>
+
+        <!-- Demande d'Achat -->
+        <li *ngIf="canAccessDemandesAchat()">
+          <a routerLink="/demandes-achat" data-tooltip="Demande d'Achat">
+            <i class="fa fa-shopping-cart"></i>
+            <span>Demande d'Achat</span>
+          </a>
+        </li>
+
+        <!-- Réceptions -->
+        <li *ngIf="canAccessReceptions()">
+          <a routerLink="/receptions" data-tooltip="Réceptions">
+            <i class="fa fa-truck"></i>
+            <span>Réceptions</span>
+          </a>
+        </li>
+
+        <!-- Consommations -->
+        <li *ngIf="canAccessConsommations()">
+          <a routerLink="/consommations" data-tooltip="Consommations">
+            <i class="fa fa-industry"></i>
+            <span>Consommations</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</div>

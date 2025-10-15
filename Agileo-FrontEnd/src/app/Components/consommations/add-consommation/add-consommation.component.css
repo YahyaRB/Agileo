@@ -1,0 +1,54 @@
+label {
+  font-weight: 500;
+}
+
+input[type="file"] {
+  border: 1px solid #ccc;
+  padding: 5px;
+  border-radius: 4px;
+}
+
+input[type="text"] {
+  min-width: 200px;
+}
+.custom-file-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #1b9a12;
+  border-radius: 8px;
+  padding: 15px;
+  height: 100px; /* hauteur plus grande */
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #f8f9fa;
+}
+
+.custom-file-upload:hover {
+  background-color: #e9ecef;
+}
+
+.upload-icon {
+  width: 24px;
+  height: 24px;
+  font-size: 40px;
+  margin-right: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.input-title {
+  font-size: 20px;
+}
+.card-header input.form-control {
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+}
+
+.table thead th {
+  font-size: 0.9rem;
+}
+
+.table tbody td {
+  vertical-align: middle;
+}

@@ -1,0 +1,87 @@
+
+<div class="modal-dialog modal-lg" role="document">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h5 class="modal-title text-success">Affectation des access à l'utilisateur</h5>
+      <button #accessModal type="button" class="close text-success" data-dismiss="modal" aria-label="Fermer" #closebutton>
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="container my-4">
+        <div class="row">
+          <!-- Tableau de gauche -->
+          <div class="col-md-6">
+            <h5 class="text-center">Access disponibles</h5>
+            <div class="table-responsive small-table">
+              <table class="table table-striped mb-0 text-nowrap">
+                <thead>
+                <tr>
+                  <th></th>
+                  <th>ID</th>
+                  <th>code</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr *ngFor="let access of listAccess">
+                  <td>
+                    <input type="checkbox" [(ngModel)]="access.selected">
+                  </td>
+                  <td>{{access.id}}</td>
+                  <td>{{access.code}}
+                    <span *ngIf="access.toBeDeleted" class="badge bg-danger ms-2">À supprimer</span>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Flèches -->
+          <div class="col-md-1 d-flex flex-column justify-content-center align-items-center arrows-container">
+            <button (click)="attribuerAccess()" style="width: 30px; height: 30px" class="btn btn-primary mb-3 d-flex align-items-center justify-content-center" title="Attribuer">
+              <i class="fa fa-arrow-right" style="font-size: 20px;" aria-hidden="true"></i>
+            </button>
+            <button (click)="retirerAccess()" style="width: 30px; height: 30px" class="btn btn-secondary d-flex align-items-center justify-content-center" title="Retirer">
+              <i class="fa fa-arrow-left" style="font-size: 20px;" aria-hidden="true"></i>
+            </button>
+          </div>
+          <!-- Tableau de droite -->
+          <div class="col-md-5">
+            <h5 class="text-center">Acess attribuées</h5>
+            <div class="table-responsive small-table">
+              <table class="table table-striped mb-0 text-nowrap">
+                <thead>
+                <tr>
+                  <th></th>
+                  <th>ID</th>
+                  <th>Code</th>
+
+                </tr>
+                </thead>
+                <tbody>
+                <tr *ngFor="let accessAttribuer of listUserAccess">
+                  <td>
+                    <input type="checkbox" [(ngModel)]="accessAttribuer.selected">
+                  </td>
+                  <td>{{accessAttribuer.id}}</td>
+                  <td>{{accessAttribuer.code}}
+                    <!-- ✅ Affichage visuel si nouvel accès -->
+                    <span *ngIf="!accessAttribuer.fromDatabase" class="badge bg-success ms-2">Nouveau</span>
+                  </td>
+
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="submit" class="btn btn-success" (click)="OnValideAffectation()">Valider</button>
+      <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+    </div>
+  </div>
+</div>
+

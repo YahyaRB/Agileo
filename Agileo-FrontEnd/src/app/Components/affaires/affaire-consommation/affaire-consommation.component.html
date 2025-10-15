@@ -1,0 +1,86 @@
+<div class="modal-dialog modal-xl" role="document">
+
+  <div class="modal-content">
+    <div class="modal-header">
+      <!--      <h5 class="modal-title text-dark">Liste des demandes d'achat pour l'affaire de Bouskoura</h5>-->
+      <h5 class="modal-title">
+        <i class="fa fa-hourglass-start text-success" aria-hidden="true"></i>
+        <span>
+      Liste des consommations pour l'affaire de
+      <span class="affaire-name text-success">Bouskoura</span>
+    </span>
+      </h5>
+      <button type="button" class="close text-success" style="font-size: 25px" data-dismiss="modal" aria-label="Fermer" #closebutton>
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+        <div class="d-flex align-items-center gap-2 flex-nowrap">
+          <div class="input-group border rounded-pill px-3 py-2 mr-2" style="min-width: 350px; ">
+            <span class="material-symbols-outlined" style="font-size: 20px; margin-right: 5px;">search</span>
+            <input type="text" class="form-control border-0 p-0" placeholder="Chercher une consommation ..." style="box-shadow: none; outline: none;">
+          </div>
+          <!-- <div class="d-flex align-items-center rounded-pill border px-2 py-0 bg-white mr-2" style="max-width: 300px;">
+
+          <span class="material-symbols-outlined" style="font-size: 20px; margin-right: 10px;">
+              brightness_auto
+          </span>
+
+          <ng-select
+              class="custom-theme flex-grow-1"
+              [items]="listeStatus"
+              bindLabel="name"
+              bindValue="name"
+              [(ngModel)]="selectedStatus"
+              placeholder="Status"
+              [searchable]="false"
+              [clearable]="false"
+          >
+          </ng-select>
+          </div> -->
+        </div>
+      </div>
+
+
+      <div class="table-responsive">
+        <table class="table table-striped mb-0 text-nowrap">
+          <thead>
+          <tr>
+            <th>ID</th>
+            <th>N°Bon Consommation</th>
+            <th>Statu</th>
+            <th>Affaire</th>
+            <th>Date</th>
+            <th>Reference interne</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr>
+            <td>1</td>
+            <td>2135</td>
+            <td>Recu</td>
+            <td>EMSI - LOT GO ETANCHE</td>
+            <td>16/05/2025</td>
+            <td>1-CONSOMMATION</td>
+          </tr>
+
+          </tbody>
+        </table>
+
+
+        <!--        <div class="mt-3 d-flex justify-content-center">-->
+        <!--          <pagination-controls-->
+        <!--            previousLabel="Précédent"-->
+        <!--            nextLabel="Suivant"-->
+        <!--            (pageChange)="onTableDataChange($event)">-->
+        <!--          </pagination-controls>-->
+        <!--        </div>-->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+

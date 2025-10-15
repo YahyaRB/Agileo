@@ -1,0 +1,6 @@
+.modal-select {
+  width: 400px !important;
+  min-width: 300px !important;
+  max-width: 100% !important;
+  flex: 0 1 auto !important;
+}

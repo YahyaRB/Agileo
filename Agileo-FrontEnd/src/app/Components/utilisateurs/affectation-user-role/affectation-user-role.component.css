@@ -1,0 +1,22 @@
+.arrows-container button {
+  width: 50px;
+  height: 50px;
+  font-size: 1.5rem;
+}
+
+.table-hover tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+h5 {
+  font-weight: bold;
+}
+
+.small-table {
+  font-size: 0.30rem; /* Réduit la taille des mots */
+}
+
+.small-table th,
+.small-table td {
+  padding: 0.2rem 0.4rem; /* Réduit l'espace interne */
+}

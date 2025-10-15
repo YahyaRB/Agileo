@@ -1,0 +1,392 @@
+<div class="modal-dialog modal-dialog-centered modal-xl" role="document">
+  <div class="modal-content">
+
+
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <h5 class="modal-title" id="addReceptionModalTitle">
+          <i class="fa fa-plus-circle"></i> Nouvelle Réception
+        </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close" #closebutton>
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <!-- Progress Stepper -->
+      <div class="stepper-wrapper">
+        <div class="stepper-item" [class.completed]="currentStep > 1" [class.active]="currentStep === 1">
+          <div class="step-counter">
+            <i class="fa fa-shopping-cart"></i>
+          </div>
+          <div class="step-name">Sélection</div>
+        </div>
+
+        <div class="stepper-item" [class.completed]="currentStep > 2" [class.active]="currentStep === 2">
+          <div class="step-counter">
+            <i class="fa fa-file-text-o"></i>
+          </div>
+          <div class="step-name">Détails BC</div>
+        </div>
+
+        <div class="stepper-item" [class.completed]="currentStep > 3" [class.active]="currentStep === 3">
+          <div class="step-counter">
+            <i class="fa fa-calendar"></i>
+          </div>
+          <div class="step-name">Réception</div>
+        </div>
+
+        <div class="stepper-item" [class.completed]="currentStep > 4" [class.active]="currentStep === 4">
+          <div class="step-counter">
+            <i class="fa fa-paperclip"></i>
+          </div>
+          <div class="step-name">Fichiers</div>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-body">
+        <form [formGroup]="myFormRegister">
+
+          <!-- ==================== STEP 1: SÉLECTION ==================== -->
+          <div *ngIf="currentStep === 1" class="step-content">
+            <h6 class="step-title">
+              <i class="fa fa-filter"></i> Sélection du bon de commande
+            </h6>
+
+            <!-- Sélection Affaire -->
+            <div class="form-group">
+              <label for="affaireFilter">
+                Affaire <span class="text-danger">*</span>
+              </label>
+              <ng-select
+                id="affaireFilter"
+                formControlName="affaireFilter"
+                [items]="availableAffaires"
+                bindLabel="name"
+                bindValue="code"
+                placeholder="Sélectionnez une affaire"
+                [clearable]="true"
+                (change)="onAffaireFilterChange($event)"
+                [disabled]="isLoadingUser">
+                <ng-template ng-option-tmp let-item="item">
+                  <strong>{{item.code}}</strong> - {{item.name}}
+                </ng-template>
+              </ng-select>
+              <small class="form-text text-muted">
+                <i class="fa fa-info-circle"></i> Sélectionnez d'abord l'affaire
+              </small>
+            </div>
+
+            <!-- Sélection Fournisseur (Optionnel) -->
+            <div class="form-group" *ngIf="availableFournisseurs.length > 0">
+              <label for="fournisseurFilter">
+                Fournisseur <span class="text-muted">(optionnel)</span>
+              </label>
+              <ng-select
+                id="fournisseurFilter"
+                formControlName="fournisseurFilter"
+                [items]="availableFournisseurs"
+                bindLabel="name"
+                placeholder="Tous les fournisseurs"
+                [clearable]="true"
+                (change)="onFournisseurFilterChange($event)"
+                (clear)="onFournisseurClear()">
+                <ng-template ng-option-tmp let-item="item">
+                  <strong>{{item.name}}</strong> <span class="text-muted">({{item.count}} commande(s))</span>
+                </ng-template>
+              </ng-select>
+              <small class="form-text text-muted" *ngIf="!myFormRegister.get('fournisseurFilter')?.value">
+                <i class="fa fa-info-circle text-info"></i> Affichage de tous les bons de commande de l'affaire
+              </small>
+              <small class="form-text text-muted" *ngIf="myFormRegister.get('fournisseurFilter')?.value">
+                <i class="fa fa-check-circle text-success"></i>
+                Filtre actif: <strong>{{myFormRegister.get('fournisseurFilter')?.value?.name}}</strong>
+                ({{myFormRegister.get('fournisseurFilter')?.value?.count}} commande(s))
+              </small>
+            </div>
+
+            <!-- Sélection Bon de commande -->
+            <div class="form-group">
+              <label for="bonCommande">
+                Bon de commande <span class="text-danger">*</span>
+              </label>
+              <ng-select
+                id="bonCommande"
+                formControlName="bonCommande"
+                [items]="filteredBonCommandes"
+                bindLabel="commande"
+                placeholder="Sélectionnez un bon de commande"
+                [clearable]="false"
+                (change)="onBonCommandeChange($event)"
+                [disabled]="!myFormRegister.get('affaireFilter')?.value">
+                <ng-template ng-option-tmp let-item="item">
+                  <div class="bon-commande-option">
+                    <div class="bc-numero"><strong>{{item.commande}}</strong></div>
+                    <div class="bc-fournisseur text-muted">{{item.fournisseur}}</div>
+                  </div>
+                </ng-template>
+              </ng-select>
+
+              <small class="form-text text-muted" *ngIf="!myFormRegister.get('affaireFilter')?.value">
+                <i class="fa fa-arrow-up"></i> Veuillez d'abord sélectionner une affaire
+              </small>
+
+              <small class="form-text text-muted" *ngIf="myFormRegister.get('affaireFilter')?.value && filteredBonCommandes.length === 0 && !myFormRegister.get('fournisseurFilter')?.value">
+                <i class="fa fa-exclamation-triangle text-warning"></i> Aucun bon de commande disponible pour cette affaire
+              </small>
+
+              <small class="form-text text-muted" *ngIf="myFormRegister.get('affaireFilter')?.value && filteredBonCommandes.length === 0 && myFormRegister.get('fournisseurFilter')?.value">
+                <i class="fa fa-exclamation-triangle text-warning"></i>
+                Aucun bon de commande pour ce fournisseur. Changez de fournisseur ou laissez le filtre vide.
+              </small>
+
+              <small class="form-text text-success" *ngIf="filteredBonCommandes.length > 0">
+                <i class="fa fa-check-circle"></i> {{filteredBonCommandes.length}} bon(s) de commande disponible(s)
+              </small>
+            </div>
+          </div>
+
+          <!-- ==================== STEP 2: LIGNES DU BON DE COMMANDE ==================== -->
+          <div *ngIf="currentStep === 2" class="step-content">
+            <h6 class="step-title">
+              <i class="fa fa-list"></i> Lignes du bon de commande
+            </h6>
+
+            <div class="bc-details-card" *ngIf="getSelectedBonCommande()">
+              <div class="bc-header">
+                <h5 class="bc-numero">
+                  <i class="fa fa-shopping-cart text-primary"></i>
+                  BC N° {{getSelectedBonCommande().commande}}
+                </h5>
+                <div>
+                  <span class="badge badge-info mr-2">
+                    <i class="fa fa-briefcase"></i> {{getSelectedBonCommande().affaireCode}}
+                  </span>
+                  <span class="badge badge-secondary">
+                    <i class="fa fa-building"></i> {{getSelectedBonCommande().fournisseur}}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Loading des lignes -->
+              <div *ngIf="isLoadingLignesBC" class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="sr-only">Chargement...</span>
+                </div>
+                <p class="text-muted mt-2">Chargement des lignes du bon de commande...</p>
+              </div>
+
+              <!-- Tableau des lignes -->
+              <div *ngIf="!isLoadingLignesBC && lignesBonCommande.length > 0" class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                  <thead class="thead-light">
+                  <tr>
+                    <th>Référence</th>
+                    <th>Désignation</th>
+                    <th class="text-center">Qté Commandée</th>
+                    <th class="text-center">Qté Disponible</th>
+                    <th>Unité</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr *ngFor="let ligne of lignesBonCommande">
+                    <td class="font-weight-bold text-primary">{{ligne.reference || ligne.referenceArticle}}</td>
+                    <td>{{ligne.designation || ligne.designationArticle}}</td>
+                    <td class="text-center">
+                      <span class="badge badge-info">{{ligne.quantite || ligne.quantiteCommandee}}</span>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge badge-success">{{ligne.reste || ligne.quantiteDisponible}}</span>
+                      <small class="text-muted d-block" *ngIf="ligne.qteLivre || ligne.quantiteDejaRecue">
+                        Reçue: {{ligne.qteLivre || ligne.quantiteDejaRecue}}
+                      </small>
+                    </td>
+                    <td>{{ligne.unite}}</td>
+                  </tr>
+                  </tbody>
+                  <tfoot class="font-weight-bold">
+
+                  </tfoot>
+                </table>
+              </div>
+
+              <!-- Message si aucune ligne -->
+              <div *ngIf="!isLoadingLignesBC && lignesBonCommande.length === 0" class="alert alert-warning text-center">
+                <i class="fa fa-exclamation-triangle"></i>
+                Aucune ligne trouvée pour ce bon de commande
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== STEP 3: INFORMATIONS DE RÉCEPTION ==================== -->
+          <div *ngIf="currentStep === 3" class="step-content">
+            <h6 class="step-title">
+              <i class="fa fa-calendar"></i> Informations de réception
+            </h6>
+
+            <!-- Récapitulatif sélection -->
+            <div class="recap-box">
+              <div class="recap-item">
+                <strong>Affaire:</strong>
+                <span *ngIf="myFormRegister.get('affaireFilter')?.value">
+                  {{myFormRegister.get('affaireFilter')?.value.code}} - {{myFormRegister.get('affaireFilter')?.value.name}}
+                </span>
+              </div>
+              <div class="recap-item">
+                <strong>Bon de commande:</strong>
+                <span *ngIf="myFormRegister.get('bonCommande')?.value">
+                  {{myFormRegister.get('bonCommande')?.value.commande}}
+                </span>
+              </div>
+              <div class="recap-item">
+                <strong>Fournisseur:</strong>
+                {{myFormRegister.get('nomFournisseur')?.value}}
+              </div>
+            </div>
+
+            <!-- Date BL -->
+            <div class="form-group">
+              <label for="dateBl">
+                Date BL <span class="text-danger">*</span>
+              </label>
+              <input
+                type="date"
+                class="form-control"
+                id="dateBl"
+                formControlName="dateBl"
+                [class.is-invalid]="myFormRegister.get('dateBl')?.invalid && myFormRegister.get('dateBl')?.touched">
+              <div class="invalid-feedback">
+                La date BL est obligatoire
+              </div>
+            </div>
+
+            <!-- N° BL (Optionnel) -->
+            <div class="form-group">
+              <label for="idAgelio">
+                N° BL <span class="text-muted">(optionnel)</span>
+              </label>
+              <input
+                type="text"
+                class="form-control"
+                id="idAgelio"
+                formControlName="idAgelio"
+                placeholder="Entrez le numéro BL">
+            </div>
+          </div>
+
+          <!-- ==================== STEP 4: FICHIERS ==================== -->
+          <div *ngIf="currentStep === 4" class="step-content">
+            <h6 class="step-title">
+              <i class="fa fa-paperclip"></i> Fichiers joints <span class="text-muted">(optionnel)</span>
+            </h6>
+
+            <!-- Zone de dépôt -->
+            <div class="drop-zone"
+                 [class.drag-over]="isDragOver"
+                 [class.disabled]="!canAddMoreFiles"
+                 (dragenter)="onDragEnter($event)"
+                 (dragover)="onDragOver($event)"
+                 (dragleave)="onDragLeave($event)"
+                 (drop)="onDrop($event)">
+              <div class="drop-zone-content">
+                <i class="fa fa-cloud-upload drop-zone-icon"></i>
+                <p class="drop-zone-text" *ngIf="canAddMoreFiles">
+                  Glissez-déposez vos fichiers ici<br>
+                  <span class="text-muted">ou</span>
+                </p>
+                <p class="drop-zone-text text-warning" *ngIf="!canAddMoreFiles">
+                  <i class="fa fa-exclamation-triangle"></i>
+                  Limite de {{MAX_FILES}} fichiers atteinte
+                </p>
+                <label for="fileInput" class="btn btn-primary btn-sm" *ngIf="canAddMoreFiles">
+                  <i class="fa fa-folder-open"></i> Parcourir
+                </label>
+                <input
+                  type="file"
+                  id="fileInput"
+                  multiple
+                  (change)="onFileSelected($event)"
+                  accept=".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.doc,.docx"
+                  style="display: none;">
+                <small class="form-text text-muted mt-2">
+                  Formats acceptés: PDF, Excel, Images, Word (max {{MAX_FILE_SIZE / (1024*1024)}} MB par fichier)
+                </small>
+              </div>
+            </div>
+
+            <!-- Liste des fichiers -->
+            <div class="files-list" *ngIf="selectedFiles.length > 0">
+              <div class="files-header">
+                <strong>
+                  <i class="fa fa-files-o"></i>
+                  Fichiers sélectionnés ({{selectedFiles.length}}/{{MAX_FILES}})
+                </strong>
+                <button type="button" class="btn btn-link btn-sm text-danger" (click)="clearAllFiles()">
+                  <i class="fa fa-trash"></i> Tout supprimer
+                </button>
+              </div>
+
+              <div class="file-item" *ngFor="let file of selectedFiles; let i = index">
+                <div class="file-info">
+                  <i class="fa {{getFileIconClass(file.name)}}"></i>
+                  <div class="file-details">
+                    <div class="file-name">{{file.name}}</div>
+                    <div class="file-size text-muted">{{file.sizeFormatted}}</div>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeFile(i)">
+                  <i class="fa fa-times"></i>
+                </button>
+              </div>
+
+              <div class="files-total">
+                <strong>Taille totale:</strong> {{getTotalFilesSize()}}
+              </div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer">
+        <button type="button"
+                class="btn btn-secondary"
+                *ngIf="currentStep > 1"
+                (click)="previousStep()"
+                [disabled]="isSubmitting">
+          <i class="fa fa-arrow-left"></i> Précédent
+        </button>
+
+        <button type="button"
+                class="btn btn-secondary"
+                data-dismiss="modal"
+                [disabled]="isSubmitting">
+          Annuler
+        </button>
+
+        <button type="button"
+                class="btn btn-primary"
+                *ngIf="currentStep < 4"
+                (click)="nextStep()"
+                [disabled]="!canGoToNextStep() || isSubmitting">
+          Suivant <i class="fa fa-arrow-right"></i>
+        </button>
+
+        <button type="button"
+                class="btn btn-success"
+                *ngIf="currentStep === 4"
+                (click)="onRegisterReception()"
+                [disabled]="myFormRegister.invalid || isSubmitting">
+          <i class="fa fa-check"></i>
+          <span *ngIf="!isSubmitting">Enregistrer</span>
+          <span *ngIf="isSubmitting">
+            <i class="fa fa-spinner fa-spin"></i> Enregistrement...
+          </span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+

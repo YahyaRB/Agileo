@@ -1,0 +1,372 @@
+<div>
+  <!-- Loading overlay - covers entire page -->
+  <div *ngIf="isLoading" class="loading-overlay">
+    <div class="d-flex justify-content-center align-items-center h-100">
+      <div class="text-center">
+        <div class="spinner-border text-primary mb-3" role="status">
+          <span class="sr-only">Chargement...</span>
+        </div>
+        <p class="text-muted">Chargement des données de réception...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content - only show when not loading -->
+  <div *ngIf="!isLoading" class="container mt-4">
+
+    <!-- Status message if reception is sent -->
+    <div *ngIf="!canEdit && statusMessage" class="alert alert-warning mb-4">
+      <i class="fa fa-exclamation-triangle"></i>
+      {{ statusMessage }}
+    </div>
+
+    <!-- Résumé de la réception -->
+    <div class="card mb-4">
+      <div class="card-header bg-light">
+        <h4 class="mb-0 text-success">
+          <i class="fa fa-info-circle"></i> Résumé de la réception #{{selectedReception?.id}}
+
+        </h4>
+      </div>
+      <div class="card-body">
+        <div class="row mb-1">
+          <div class="col-md-12">
+            <h5 class="text-muted mb-1">Affaire/Chantier</h5>
+            <span class="badge badge-info">{{selectedReception?.affaireCode}} - {{selectedReception?.affaireLibelle}}</span>
+
+          </div>
+
+        </div>
+
+
+
+
+        <div class="row mb-1">
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Date de réception</h5>
+            <p>{{selectedReception?.dateReception | date:'dd/MM/yyyy '}}</p>
+          </div>
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Créé par:</h5>
+            <p>{{selectedReception?.userLogin}}
+              <span *ngIf="selectedReception?.userLogin === currentUser?.login?.toString()" class="badge badge-primary ml-2">Vous</span>
+            </p>
+
+          </div>
+
+        </div>
+        <div class="row mb-1">
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">N°BL:</h5>
+            <p> {{selectedReception?.referenceBl}}</p>
+          </div>
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Date BL:</h5>
+            <p>{{selectedReception?.dateBl | date:'dd/MM/yyyy '}}</p>
+          </div>
+        </div>
+        <div class="row mb-1">
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Réf. Fournisseur:</h5>
+            <p> {{selectedReception?.refFournisseur}}</p>
+          </div>
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Nom Fournisseur:</h5>
+            <p>   {{selectedReception?.nomFournisseur || 'Non spécifié'}}</p>
+          </div>
+
+        </div>
+        <div class="row mb-1">
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Référence BC:</h5>
+            <p> {{selectedReception?.affaireId}}</p>
+          </div>
+
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Statut</h5>
+            <span class="badge"
+                  [ngClass]="selectedReception?.statut === 'Envoyé' ? 'badge-warning' : selectedReception?.statut === 'Brouillon' ? 'badge-secondary' : 'badge-primary'">
+                {{selectedReception?.statut || 'En cours'}}
+              </span>
+          </div>
+        </div>
+        <div class="row mb-1">
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Id Agelio:</h5>
+            <p>{{selectedReception?.id}}</p>
+          </div>
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">ID Divalto:</h5>
+            <p>{{selectedReception?.blDivalto > 0 ? selectedReception?.blDivalto : '-'}}</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Articles déjà reçus avec édition -->
+    <div class="card mb-4" *ngIf="existingLignes.length > 0">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0">
+          <i class="fa fa-check-circle"></i> Articles déjà reçus ({{ existingLignes.length }})
+        </h5>
+      </div>
+      <div class="card-body p-2">
+        <table class="table table-sm table-striped mb-0">
+          <thead class="thead-light">
+          <tr>
+            <th>Référence</th>
+            <th>Désignation</th>
+            <th class="text-center">Qté Commandée</th>
+            <th class="text-center">Qté Disponible</th>
+            <th>Unité</th>
+            <th>Quantité</th>
+            <th class="text-center">Actions</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr *ngFor="let ligne of existingLignes; let i = index; trackBy: trackByLigneId">
+            <td class="font-weight-bold text-success">{{ ligne.referenceArticle }}</td>
+            <td>{{ ligne.designationArticle }}</td>
+            <td class="text-center">
+              <span class="badge badge-info">{{ligne.qteCmd}}</span>
+            </td>
+            <td class="text-center">
+              <span class="badge badge-success">{{ligne.reste}}</span>
+              <small class="text-muted d-block">Reçue: {{ligne.qteLivre}}</small>
+            </td>
+            <td>{{ ligne.unite }}</td>
+            <td style="width: 150px;">
+              <!-- Input éditable pour les lignes existantes -->
+              <div *ngIf="ligne.editing" class="input-group input-group-sm">
+                <input type="number"
+
+                       min="0.1"
+                       [max] = "ligne.reste"
+                       step="0.1"
+                       class="form-control form-control-sm border-warning"
+                       [(ngModel)]="ligne.quantite"
+                       [disabled]="ligne.isValidating === true">
+                <div class="input-group-append" *ngIf="ligne.isValidating">
+                  <span class="input-group-text">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                  </span>
+                </div>
+              </div>
+
+              <!-- Affichage normal -->
+              <span *ngIf="!ligne.editing" class="badge badge-success">{{ ligne.quantite }}</span>
+
+              <!-- Message de validation -->
+              <small *ngIf="ligne.validation && !ligne.validation.valide" class="text-danger d-block">
+                {{ ligne.validation.message }}
+              </small>
+            </td>
+            <td class="text-center">
+              <div class="btn-group" role="group">
+                <!-- Boutons en mode édition -->
+                <button *ngIf="ligne.editing"
+                        class="btn btn-sm btn-success"
+                        (click)="confirmEditLigne(i)"
+                        [disabled]="ligne.isValidating === true"
+                        title="Valider les modifications">
+                  <i class="fa fa-check" *ngIf="!ligne.isValidating"></i>
+                  <i class="fa fa-spinner fa-spin" *ngIf="ligne.isValidating"></i>
+                </button>
+
+                <button *ngIf="ligne.editing"
+                        class="btn btn-sm btn-secondary ml-1"
+                        (click)="cancelEditLigne(i)"
+                        [disabled]="ligne.isValidating === true"
+                        title="Annuler les modifications">
+                  <i class="fa fa-times"></i>
+                </button>
+
+                <!-- Boutons en mode normal -->
+                <button *ngIf="!ligne.editing"
+                        class="btn btn-sm btn-outline-primary"
+                        (click)="startEditLigne(i)"
+                        [disabled]="!canEdit"
+                        [title]="canEdit ? 'Modifier la quantité' : 'Réception envoyée - Modification interdite'">
+                  <i class="fa fa-pencil"></i>
+                </button>
+
+                <button class="btn btn-sm"
+                        [class.ml-1]="!ligne.editing"
+                        [class.btn-outline-danger]="existingLignes.length > 1 && canDeleteLigne(ligne.id!)"
+                        [class.btn-warning]="existingLignes.length <= 1 && canDeleteLigne(ligne.id!)"
+                        [class.btn-outline-secondary]="!canDeleteLigne(ligne.id!)"
+                        (click)="deleteLigneReception(ligne.id!, ligne.referenceArticle)"
+                        [disabled]="!canDeleteLigne(ligne.id!)"
+                        [title]="getDeleteTooltip(ligne.id!)">
+                  <i class="fa fa-trash" *ngIf="!ligne.isValidating"></i>
+                  <i class="fa fa-spinner fa-spin" *ngIf="ligne.isValidating"></i>
+                </button>
+              </div>
+
+              <!-- Message d'aide si suppression impossible -->
+              <small *ngIf="existingLignes.length <= 1" class="text-muted d-block mt-1">
+                <i class="fa fa-info-circle"></i> Dernière ligne
+              </small>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Articles disponibles avec édition inline -->
+    <div class="row">
+      <div class="col-lg-12 mb-4">
+        <div class="card h-100">
+          <div class="card-header bg-light">
+            <h5 class="mb-0 text-primary">
+              <i class="fa fa-cubes"></i> Articles Disponibles
+<!--              <span class="badge badge-info ml-2" *ngIf="articlesDisponibles.length > 0">-->
+<!--                {{ articlesDisponibles.length }} article(s)-->
+<!--              </span>-->
+              <span class="badge badge-info ml-2" *ngIf="articlesDisponibles.length > 0">
+            {{ articlesDisponibles.length }} article(s) restant(s)
+          </span>
+            </h5>
+          </div>
+
+          <div class="card-body p-3">
+            <!-- Loading state for articles only -->
+            <div *ngIf="isLoadingArticles" class="text-center py-4">
+              <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Chargement des articles...</span>
+              </div>
+              <p class="mt-2 text-muted">Chargement des articles disponibles...</p>
+            </div>
+
+            <!-- Articles content -->
+            <div *ngIf="!isLoadingArticles">
+              <!-- Barre de recherche -->
+              <div class="input-group border rounded-pill px-3 py-2 mb-3" style="width: 300px">
+                       <span style="font-size: 20px; margin-right: 5px;">
+      <i class="fa fa-search"></i>
+    </span>
+                <input type="text" class="form-control border-0 p-0"
+                       placeholder="Chercher un article..."
+                       style="box-shadow: none; outline: none;"
+                       [(ngModel)]="pfiltre">
+              </div>
+
+              <!-- Message d'information si aucun article -->
+              <div *ngIf="articlesDisponibles.length === 0" class="alert alert-info text-center">
+                <i class="fa fa-info-circle fa-2x mb-2"></i>
+                <h5>Aucun article disponible</h5>
+                <p class="mb-0">Aucun article n'est disponible dans les bons de commande pour cette affaire et ce fournisseur.</p>
+              </div>
+
+              <!-- Table avec édition inline -->
+              <div style="max-height: 300px; overflow-y: auto;" *ngIf="articlesDisponibles.length > 0">
+                <table class="table table-sm table-hover mb-0">
+                  <thead class="thead-light sticky-top">
+                  <tr>
+                    <th>Référence</th>
+                    <th>Désignation</th>
+                    <th>Unité</th>
+                    <th class="text-center">Qté Commandée</th>
+                    <th class="text-center">Qté Disponible</th>
+                    <th class="text-center">Quantité</th>
+                    <th class="text-center">Action</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr *ngFor="let art of filteredArticles(); let i = index; trackBy: trackByCode"
+                      style="cursor:default;">
+                    <td class="font-weight-bold text-primary">{{ art.reference }}</td>
+                    <td>{{ art.designation }}</td>
+                    <td>{{ art.unite }}</td>
+                    <td class="text-center">
+                      <span class="badge badge-info">{{ art.quantiteCommandee }}</span>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge badge-success">{{ art.quantiteDisponible }}</span>
+                      <small class="text-muted d-block">Reçue: {{ art.quantiteDejaRecue }}</small>
+                    </td>
+                    <td class="text-center" style="width: 120px;">
+                      <!-- Input de quantité inline -->
+                      <div *ngIf="art.editing" class="input-group input-group-sm">
+                        <input type="number"
+                               min="0.1"
+                               [max]="art.quantiteDisponible"
+                               step="0.1"
+                               class="form-control form-control-sm text-center"
+                               [(ngModel)]="art.quantiteToAdd"
+                               [disabled]="art.isValidating === true"
+                               [class.border-danger]="art.validation && !art.validation.valide"
+                               [class.border-success]="art.validation && art.validation.valide">
+                        <div class="input-group-append" *ngIf="art.isValidating">
+                          <span class="input-group-text">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                          </span>
+                        </div>
+                      </div>
+
+                      <!-- Message de validation -->
+                      <small *ngIf="art.validation && !art.validation.valide" class="text-danger d-block mt-1">
+                        Qté max: {{ art.quantiteDisponible }}
+                      </small>
+                    </td>
+                    <td class="text-center">
+                      <!-- Boutons conditionnels -->
+                      <div *ngIf="!art.editing" class="btn-group">
+                        <button class="btn btn-sm btn-outline-success"
+                                (click)="startAddArticle(art, i)"
+                                [disabled]="art.quantiteDisponible <= 0">
+                          <i class="fa fa-plus"></i>
+                          {{ art.quantiteDisponible <= 0 ? 'Épuisé' : 'Ajouter' }}
+                        </button>
+                      </div>
+
+                      <div *ngIf="art.editing" class="btn-group">
+                        <button class="btn btn-sm btn-success"
+                                (click)="confirmAddArticle(art, i)"
+                                [disabled]="!art.quantiteToAdd || art.quantiteToAdd <= 0 || art.isValidating === true"
+                                title="Valider l'ajout">
+                          <i class="fa fa-check" *ngIf="!art.isValidating"></i>
+                          <i class="fa fa-spinner fa-spin" *ngIf="art.isValidating"></i>
+                        </button>
+
+                        <button class="btn btn-sm btn-secondary ml-1"
+                                (click)="cancelAddArticle(art)"
+                                [disabled]="art.isValidating === true"
+                                title="Annuler">
+                          <i class="fa fa-times"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Message si aucun article trouvé avec le filtre -->
+                  <tr *ngIf="filteredArticles().length === 0">
+                    <td colspan="7" class="text-center text-muted py-4">
+                      <i class="fa fa-search"></i>
+                      Aucun article trouvé avec ce critère de recherche
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+    <!-- Boutons d'action -->
+    <div class="modal-footer">
+      <button routerLink="/receptions"
+              type="button"
+              class="btn btn-secondary"
+              [disabled]="isLoading">
+        <i class="fa fa-arrow-left"></i> Retour aux Réceptions
+      </button>
+    </div>
+  </div>
+</div>

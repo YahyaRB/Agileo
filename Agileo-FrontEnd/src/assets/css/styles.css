@@ -1,0 +1,163 @@
+/* ========== STYLES EXISTANTS ========== */
+.card.collapsed .card-body {
+  display: none !important;
+}
+
+.card.collapsed .card-header .fa-chevron-up {
+  transform: rotate(180deg);
+}
+
+.card.fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.card.fullscreen .card-body {
+  height: calc(100vh - 80px) !important;
+  overflow: auto !important;
+}
+
+.card-options-collapse,
+.card-options-fullscreen {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 8px;
+  border-radius: 4px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #007bff;
+}
+
+.card-options-collapse:hover,
+.card-options-fullscreen:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+  text-decoration: none;
+  color: #0056b3;
+}
+
+.card-options-collapse i {
+  transition: transform 0.3s ease;
+}
+
+.card.collapsed .card-options-collapse i {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 768px) {
+  .card.fullscreen {
+    padding: 0;
+  }
+
+  .card.fullscreen .card-body {
+    height: calc(100vh - 60px) !important;
+    padding: 10px;
+  }
+}
+
+th button {
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  padding: 2px 5px;
+  transition: background-color 0.2s ease;
+}
+
+th button:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+  border-radius: 3px;
+}
+
+th button i {
+  color: #108efb;
+  transition: color 0.2s ease;
+}
+
+th button:hover i {
+  color: #0056b3;
+}
+
+.id-link {
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  min-width: 35px;
+  justify-content: center;
+  display: flex;
+  color: #007bff;
+}
+
+.id-link:hover {
+  transform: scale(1.05);
+  text-decoration: none;
+  color: #0056b3;
+}
+
+.id-link::after {
+  content: '→';
+  font-size: 0.8rem;
+  opacity: 0;
+  transform: translateX(-5px);
+  transition: all 0.3s ease;
+}
+
+.id-link:hover::after {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.id-link:active {
+  transform: scale(0.95);
+}
+
+/* ========== NOUVEAUX STYLES POUR NG-SELECT ========== */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Assurer que le dropdown s'affiche au-dessus des autres éléments */
+.ng-dropdown-panel {
+  z-index: 1050 !important;
+}
+
+
+
+
+
+/* Assurer que le ng-select et le bouton sont sur la même ligne */
+.form-inline,
+.d-flex.align-items-center {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+
+
+
+

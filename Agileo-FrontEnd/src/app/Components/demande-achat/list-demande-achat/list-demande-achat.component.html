@@ -1,0 +1,530 @@
+<div class="section-body">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center">
+      <div class="header-action">
+        <h1 class="page-title">Dashboard</h1>
+        <ol class="breadcrumb page-breadcrumb">
+          <li class="breadcrumb-item"><a href="#">AGILEO</a></li>
+          <li class="breadcrumb-item"><a href="#">ACHATS</a></li>
+          <li class="breadcrumb-item active" aria-current="page">DEMANDES ACHAT</li>
+        </ol>
+        &nbsp;
+      </div>
+    </div>
+  </div>
+</div>
+<main role="main" class="main-content">
+  <div class="card" [ngClass]="{'collapsed': isCollapsed, 'fullscreen': isFullscreen}">
+    <div class="card-header">
+      <h3 class="card-title">Liste des demandes d'achat</h3>
+      <div class="card-options d-flex align-items-center">
+        <a class="card-options-collapse text-blue" (click)="toggleCollapse()">
+          <i class="fe" [ngClass]="{'fe-chevron-up': !isCollapsed, 'fe-chevron-down': isCollapsed}"></i>
+        </a>
+        <a href="#" class="card-options-fullscreen" data-toggle="card-fullscreen"><i class="fe fe-maximize"></i></a>
+      </div>
+    </div>
+
+    <div class="card-body">
+
+      <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+
+        <div class="d-flex align-items-center gap-2 flex-nowrap">
+          <div class="input-group border rounded-pill px-3 py-2 mr-2" style="min-width: 290px;">
+                 <span style="font-size: 20px; margin-right: 5px;">
+      <i class="fa fa-search"></i>
+    </span>
+            <input type="text" class="form-control border-0 p-0" placeholder="Chercher demande d'achat par ..." style="box-shadow: none; outline: none;" [(ngModel)]="pfiltre">
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button type="button" class="btn btn-success">Options</button>
+          <button type="button" class="btn btn-success dropdown-toggle"
+                  data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <span class="caret"></span>
+            <span class="sr-only">Toggle Dropdown</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-right mt-1">
+            <li style="min-width: 250px">
+              <a type="button" (click)="ouvrirModalAvecDelay()"  class="pl-3 py-1">
+                <i class="fa fa-user-plus text-success"></i> Ajouter une demande d'achat
+              </a>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-striped mb-0 text-nowrap">
+          <thead>
+          <tr>
+            <th>ID
+              <button class="btn-tri-transparent" (click)="sortColumn('id')"><i class="fa"
+                                                                                [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'id' || sort.direction === 'asc',
+                    'fa-sort-alpha-desc': sort.field === 'id' && sort.direction === 'desc'
+                     }" ></i></button>
+            </th>
+            <th>Affaire
+              <button class="btn-tri-transparent" (click)="sortColumn('chantier')"><i class="fa"
+                                                                                      [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'chantier' || sort.direction === 'asc',
+                    'fa-sort-alpha-desc': sort.field === 'chantier' && sort.direction === 'desc'
+                     }" ></i></button>
+            </th>
+
+
+            <th>Date DA
+              <button class="btn-tri-transparent" (click)="sortColumn('dateDa')"><i class="fa"
+                                                                                           [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'dateDa' || sort.direction === 'asc',
+                    'fa-sort-alpha-desc': sort.field === 'dateDa' && sort.direction === 'desc'
+                     }" ></i></button>
+            </th>
+            <th>délai souhaité
+              <button class="btn-tri-transparent" (click)="sortColumn('delaiSouhaite')"><i class="fa"
+                                                                                           [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'delaiSouhaite' || sort.direction === 'asc',
+                    'fa-sort-alpha-desc': sort.field === 'delaiSouhaite' && sort.direction === 'desc'
+                     }" ></i></button>
+            </th>
+            <th>
+              Commentaire
+              <button class="btn-tri-transparent" (click)="sortColumn('commentaire')"><i class="fa"
+                                                                                         [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'commentaire' || sort.direction === 'asc',
+                    'fa-sort-alpha-desc': sort.field === 'commentaire' && sort.direction === 'desc'
+                     }" ></i></button>
+            </th>
+            <th>Demandeur
+              <button class="btn-tri-transparent" (click)="sortColumn('sysUserId')"><i class="fa"
+                                                                                       [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'sysUserId' || sort.direction === 'asc',
+                    'fa-sort-alpha-desc': sort.field === 'sysUserId' && sort.direction === 'desc'
+                     }" ></i></button>
+            </th>
+            <th>Status
+              <button class="btn-tri-transparent" (click)="sortColumn('statut')"><i class="fa"
+                                                                                    [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'statut' || sort.direction === 'asc',
+                    'fa-sort-alpha-desc': sort.field === 'statut' && sort.direction === 'desc'
+                     }" ></i></button>
+            </th>
+            <th>Action</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr *ngFor="let demande of listDemandesAchat | psearch: pfiltre | paginate:{ itemsPerPage: tableSize, currentPage: page, totalItems: count }">
+            <td>
+              <a [class.disabled]="isDemandeEnvoyee(demande)"
+                 [routerLink]="isDemandeEnvoyee(demande) ? null : ['/demandes-achat', demande.id, 'add-ligne-demande']"
+                 (click)="isDemandeEnvoyee(demande) ? onDisabledDemandeClick($event, demande) : null"
+                 class="text-primary font-weight-bold">
+                DA-{{ demande.id?.toString().padStart(4, '0') }}
+              </a>
+            </td>
+
+            <td>
+              <span class="text-dark">{{ demande.affaireCode || demande.chantier }}</span>
+              <small class="d-block text-muted">{{ demande.chantierLibelle }}</small>
+            </td>
+
+            <td>
+              <span>{{ formatDate(demande.dateDa ) }}</span>
+            </td>
+            <td>
+              <span>{{ formatDate(demande.delai || demande.delaiSouhaite) }}</span>
+            </td>
+            <td>
+                <span class="text-truncate d-inline-block" style="max-width: 200px;"
+                      [title]="demande.commentaire">
+                  {{ demande.commentaire || '-' }}
+                </span>
+            </td>
+            <td>
+              <span class="text-dark">{{ demande.createdBy || demande.demandeurNom }}</span>
+            </td>
+            <td>
+                <span class="badge-large" [class]="getStatusClass(demande.statut || 0) ">
+                  {{ getStatusLabel(demande.statut) }}
+                </span>
+            </td>
+            <td>
+              <div class="btn-group" role="group">
+                <button
+                  class="btn btn-sm btn-outline-info mr-2"
+                  (click)="openDetailsModal(demande)"
+                  title="Voir les détails">
+                  <i class="fa fa-eye" aria-hidden="true"></i>
+                </button>
+                <button *ngIf="!isDemandeEnvoyee(demande)"
+                        class="btn btn-sm btn-outline-success mr-2"
+                        (click)="openConfirmSendModal(demande.id)"
+                        title="Envoyer la demande">
+                  <i class="fa fa-paper-plane" aria-hidden="true"></i>
+                </button>
+                <button *ngIf="!isDemandeEnvoyee(demande)"
+                        class="btn btn-sm btn-outline-warning mr-2"
+                        (click)="openModalForUpdateDemande(demande)"
+                        title="Modifier">
+                  <i class="fa fa-pencil" aria-hidden="true"></i>
+                </button>
+
+                <button *ngIf="!isDemandeEnvoyee(demande)"
+                        class="btn btn-sm btn-outline-danger"
+                        data-toggle="modal"
+                        data-target="#deleteModal"
+                        (click)="SuppressionDemande(demande.id)"
+                        title="Supprimer">
+                  <i class="fa fa-trash" aria-hidden="true"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="listDemandesAchat.length === 0 && !isLoading">
+            <td colspan="9" class="text-center py-4">
+              <i class="fe fe-inbox text-muted" style="font-size: 3rem;"></i>
+              <p class="text-muted mt-2">Aucune demande d'achat trouvée</p>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card-footer" *ngIf="listDemandesAchat.length > 0">
+      <div class="row align-items-center">
+        <div class="col-md-6">
+          <select class="form-control form-control-sm w-auto" [(ngModel)]="tableSize" (change)="onTableSizeChange($event)">
+            <option *ngFor="let size of tableSizes" [value]="size">{{ size }} par page</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <pagination-controls
+            class="float-right"
+            previousLabel="Précédent"
+            nextLabel="Suivant"
+            (pageChange)="onTableDataChange($event)">
+          </pagination-controls>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="sr-only">Chargement...</span>
+    </div>
+  </div>
+
+  <div class="d-none">
+    <button #btnFakeAdd data-toggle="modal" data-target="#addModal"></button>
+    <button #btnFakeUpdate data-toggle="modal" data-target="#updateModal"></button>
+    <button #btnFake data-toggle="modal" data-target="#deleteModal"></button>
+  </div>
+</main>
+
+<div class="modal fade" id="addModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <app-add-demande-achat
+    (ajoutEffectue)="loadDemandesAchat()"
+    *ngIf="showModal">
+  </app-add-demande-achat>
+</div>
+
+<div class="modal fade" id="updateModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <app-update-demande-achat
+    [demandeToUpdate]="selectedDemande"
+    (ajoutEffectue)="loadDemandesAchat()"
+    *ngIf="showModal">
+  </app-update-demande-achat>
+</div>
+
+<div class="modal fade" id="detailsModal" tabindex="-1" role="dialog" aria-labelledby="detailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h4 class="modal-title" id="detailsModalLabel">
+          <i class="fe fe-file-text mr-2"></i>
+          Détails de la demande d'achat #{{selectedDemande?.id}}
+        </h4>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" *ngIf="selectedDemandeForDetails">
+        <div class="row mb-1">
+          <div class="col-md-6">
+            <h5 class="text-muted mb-2">Numéro de demande</h5>
+            <p class="font-weight-bold">DA-{{ selectedDemandeForDetails.id?.toString().padStart(4, '0') }}</p>
+          </div>
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Statut</h5>
+
+            <span class="badge"
+                  [ngClass]="{
+                      'badge-secondary': selectedDemandeForDetails?.statut === 0,
+                      'badge-warning': selectedDemandeForDetails?.statut === 1,
+                      'badge-primary': selectedDemandeForDetails?.statut === 2
+                    }">
+                {{ selectedDemandeForDetails?.statutLabel || selectedDemandeForDetails?.statut || 'N/A' }}
+              </span>
+          </div>
+        </div>
+
+        <div class="row mb-1">
+          <div class="col-md-12">
+            <h5 class="text-muted mb-1">Affaire/Chantier</h5>
+            <p>{{ selectedDemandeForDetails.affaireCode || selectedDemandeForDetails.chantier }} - {{ selectedDemandeForDetails.chantierLibelle }} </p>
+
+          </div>
+
+        </div>
+
+        <div class="row mb-1">
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Date de création</h5>
+            <p>{{ formatDate(selectedDemandeForDetails.dateCreation || selectedDemandeForDetails.sysCreationDate) }}</p>
+          </div>
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Délai souhaité</h5>
+            <p>{{ formatDate(selectedDemandeForDetails.delai || selectedDemandeForDetails.delaiSouhaite) }}</p>
+          </div>
+        </div>
+
+        <div class="row mb-1">
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Demandeur</h5>
+            <p>{{ selectedDemandeForDetails.createdBy || selectedDemandeForDetails.demandeurNom }}</p>
+          </div>
+          <div class="col-md-6">
+            <h5 class="text-muted mb-1">Commentaire</h5>
+            <p>{{ selectedDemandeForDetails.commentaire || 'Aucun commentaire' }}</p>
+          </div>
+        </div>
+        <hr>
+        <!-- ✅ Section Articles harmonisée avec consommations -->
+        <div class="card mb-4">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0">
+              <i class="fa fa-list"></i>
+              Articles de la demande
+              <span class="badge badge-light text-dark ml-2" *ngIf="listLigneDemandeDchat">
+        {{listLigneDemandeDchat.length}} article(s)
+      </span>
+            </h5>
+          </div>
+          <div class="card-body">
+            <!-- ✅ État de chargement (si nécessaire) -->
+            <div *ngIf="isLoadingDetails" class="text-center py-4">
+              <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Chargement...</span>
+              </div>
+              <p class="mt-2 text-muted">Chargement des articles...</p>
+            </div>
+
+            <!-- ✅ Affichage conditionnel -->
+            <div *ngIf="!isLoadingDetails" class="table-responsive">
+
+              <!-- Cas: Articles trouvés -->
+              <div *ngIf="listLigneDemandeDchat && listLigneDemandeDchat.length > 0">
+                <table class="table table-sm table-striped mb-0">
+                  <thead class="thead-light">
+                  <tr>
+                    <th>Référence</th>
+                    <th>Désignation</th>
+                    <th class="text-center">Quantité</th>
+                    <th>Unité</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr *ngFor="let ligne of listLigneDemandeDchat">
+                    <td class="font-weight-bold text-primary">
+                      <i class="fa fa-barcode"></i> {{ ligne.ref }}
+                    </td>
+                    <td>
+                      <i class="fa fa-cube text-muted"></i>
+                      {{ ligne.designation }}
+                    </td>
+                    <td class="text-center">
+                <span class="badge badge-info badge-lg">
+                  {{ ligne.qte || ligne.quantite }}
+                </span>
+                    </td>
+                    <td>
+                      <span class="text-info">{{ ligne.unite }}</span>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- ✅ Cas: Aucun article - STYLE HARMONISÉ -->
+              <div *ngIf="!listLigneDemandeDchat || listLigneDemandeDchat.length === 0"
+                   class="alert alert-info text-center">
+                <i class="fa fa-info-circle fa-2x mb-2"></i>
+                <h6>Aucun article consommé</h6>
+                <p class="mb-0 text-muted">Cette demande d'achat ne contient aucun article pour le moment.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <hr>
+        <div class="row mb-3">
+          <div class="col-12">
+            <h5>
+              <i class="fe fe-paperclip mr-2 text-primary"></i>
+              Pièces Jointes
+              <span class="badge badge-secondary ml-2">{{ listPiecesJointes.length }}</span>
+            </h5>
+
+            <!-- État de chargement -->
+            <div *ngIf="loadingFiles" class="text-center py-3">
+              <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="sr-only">Chargement...</span>
+              </div>
+              <p class="mt-2 text-muted small">Chargement des fichiers...</p>
+            </div>
+
+            <!-- Erreur -->
+            <div *ngIf="errorFiles && !loadingFiles" class="alert alert-warning">
+              <i class="fe fe-alert-triangle"></i>
+              <strong>Attention:</strong> Erreur lors du chargement des fichiers
+            </div>
+
+            <!-- Liste des fichiers -->
+            <div *ngIf="!loadingFiles && !errorFiles">
+              <div *ngIf="listPiecesJointes && listPiecesJointes.length > 0; else noFilesTemplate">
+                <div class="row">
+                  <div class="col-md-6 col-lg-4 mb-3" *ngFor="let file of listPiecesJointes">
+                    <div class="card file-card h-100 border-light">
+                      <div class="card-body p-3">
+                        <!-- Nom du fichier -->
+                        <h6 class="card-title text-truncate" [title]="file.fullFileName || file.name || file.libelle">
+                          <i class="fe fe-file-text text-muted me-2"></i>
+                          {{ file.fullFileName || file.name || file.libelle || 'Fichier sans nom' }}
+                        </h6>
+
+                        <!-- Métadonnées -->
+                        <div class="file-metadata">
+                          <small class="text-muted d-block" *ngIf="file.sizeFormatted || file.size">
+                            <i class="fe fe-hard-drive"></i>
+                            {{ file.sizeFormatted || (file.size | number) + ' bytes' }}
+                          </small>
+                          <small class="text-muted d-block" *ngIf="file.uploadDate">
+                            <i class="fe fe-calendar"></i>
+                            {{ file.uploadDate | date:'dd/MM/yyyy HH:mm' }}
+                          </small>
+                          <small class="text-muted d-block" *ngIf="file.uploadedByNom">
+                            <i class="fe fe-user"></i>
+                            {{ file.uploadedByNom }}
+                          </small>
+                          <span class="badge badge-info badge-sm mt-1">
+                    {{ file.extension?.toUpperCase() || 'FICHIER' }}
+                  </span>
+                        </div>
+                      </div>
+
+                      <!-- Actions -->
+                      <div class="card-footer bg-light p-2">
+                        <div class="btn-group w-100" role="group">
+
+                          <button type="button"
+                                  class="btn btn-outline-success btn-sm"
+                                  (click)="downloadFile(file)"
+                                  [disabled]="loadingFiles"
+                                  title="Télécharger">
+                            <i class="fe fe-download"></i>
+                            Télécharger
+                          </button>
+
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
+              <!-- Message si limite atteinte -->
+              <div class="row mt-3" *ngIf="!canAddMoreFiles() && !isDemandeEnvoyee(selectedDemandeForDetails!)">
+                <div class="col-12">
+                  <div class="alert alert-info">
+                    <i class="fe fe-info mr-2"></i>
+                    <strong>Limite atteinte:</strong> Maximum {{ maxFiles }} fichiers par demande d'achat.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Template si aucun fichier -->
+              <ng-template #noFilesTemplate>
+                <div class="alert alert-info text-center">
+                  <i class="fe fe-file-text fa-2x mb-2"></i>
+                  <h6>Aucune pièce jointe</h6>
+                  <p class="mb-0">Cette demande d'achat ne contient aucune pièce jointe.</p>
+                </div>
+              </ng-template>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="confirmSendModal" tabindex="-1" role="dialog" aria-labelledby="confirmSendModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title" id="confirmSendModalLabel">
+          <i class="fe fe-alert-triangle mr-2"></i>
+          Confirmation d'envoi
+        </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-start">
+          <i class="fe fe-alert-octagon text-warning mr-3" style="font-size: 24px;"></i>
+          <div>
+            <p class="mb-1">Voulez-vous vraiment envoyer cette demande d'achat ?</p>
+            <small class="text-muted">Cette action est <strong>irréversible</strong>.
+              Une fois envoyée, la demande ne pourra plus être modifiée.</small>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" (click)="sendDemandeConfirmed()">
+          <i class="fe fe-send mr-1"></i> Confirmer l'envoi
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="deleteModalLabel">
+          <i class="fe fe-trash-2 mr-2"></i>
+          Confirmation de suppression
+        </h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Êtes-vous sûr de vouloir supprimer cette demande d'achat ?</p>
+        <small class="text-muted">Cette action est irréversible.</small>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" data-dismiss="modal" (click)="suppressionDemandeConfirmed()">
+          <i class="fe fe-trash-2 mr-1"></i> Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,540 @@
+<div class="section-body">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center">
+      <div class="header-action">
+        <h1 class="page-title">Dashboard</h1>
+        <ol class="breadcrumb page-breadcrumb">
+          <li class="breadcrumb-item"><a href="#">AGILEO</a></li>
+          <li class="breadcrumb-item"><a href="#">ADMINISTRATION</a></li>
+          <li class="breadcrumb-item active" aria-current="page">LISTE UTILISATEURS</li>
+        </ol>
+        &nbsp;
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row mx-1">
+  <div class="col-12">
+    <div class="card" [ngClass]="{'collapsed': isCollapsed, 'fullscreen': isFullscreen}">
+      <div class="card-header">
+        <h3 class="card-title">Liste des utilisateurs</h3>
+        <div class="card-options d-flex align-items-center">
+          <a class="card-options-collapse text-blue" (click)="toggleCollapse()">
+            <i class="fe" [ngClass]="{'fe-chevron-up': !isCollapsed, 'fe-chevron-down': isCollapsed}"></i>
+          </a>
+          <a href="#" class="card-options-fullscreen" data-toggle="card-fullscreen"><i class="fe fe-maximize"></i></a>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+
+          <div class="d-flex align-items-center gap-2 flex-nowrap">
+            <!-- Champ de recherche -->
+            <div class="input-group border rounded-pill px-3 py-2 mr-2" style="min-width: 250px;">
+    <span style="font-size: 20px; margin-right: 5px;">
+      <i class="fa fa-search"></i>
+    </span>
+              <input type="text" class="form-control border-0 p-0" placeholder="Chercher utilisateur par ..."
+                     style="box-shadow: none; outline: none;" [(ngModel)]="pfiltre">
+            </div>
+
+            <!-- Filtre par rôle -->
+            <div class="d-flex align-items-center rounded-pill border px-2 py-0 bg-white mr-2" style="max-width: 300px;">
+    <span style="font-size: 20px; margin-right: 10px;">
+      <i class="fa fa-user-tag"></i>
+    </span>
+              <ng-select
+                class="custom-theme flex-grow-1"
+                [items]="listeRoles"
+                bindLabel="name"
+                bindValue="name"
+                [(ngModel)]="selectedRole"
+                placeholder="Role"
+                [searchable]="false"
+                [clearable]="false"
+              >
+              </ng-select>
+            </div>
+
+            <!-- Filtre par statut -->
+            <div class="d-flex align-items-center rounded-pill border px-2 py-0 bg-white mr-2" style="max-width: 300px;">
+    <span style="font-size: 20px; margin-right: 10px;">
+      <i class="fa fa-toggle-on"></i>
+    </span>
+              <ng-select
+                class="custom-theme flex-grow-1"
+                [items]="listeStatus"
+                bindLabel="name"
+                bindValue="name"
+                [(ngModel)]="selectedStatus"
+                placeholder="Status"
+                [searchable]="false"
+                [clearable]="false"
+              >
+              </ng-select>
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <button type="button" class="btn btn-success">Options</button>
+            <button type="button" class="btn btn-success dropdown-toggle"
+                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span class="caret"></span>
+              <span class="sr-only">Toggle Dropdown</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-right mt-1">
+              <li>
+                <a type="button" class="pl-3 py-1">
+                  <i class="fa fa-user-plus text-success"></i> Ajouter un utilisateur
+                </a>
+              </li>
+              <li class="divider"></li>
+              <li>
+                <a type="button" class="pl-3 py-1" (click)="openGestionAccess()">
+                  <i class="fa fa-key text-primary"></i> Gestion des Accès
+                </a>
+              </li>
+              <li>
+                <a type="button" class="pl-3 py-1" (click)="openGestionRoles()">
+                  <i class="fa fa-users text-info"></i> Gestion des Rôles
+                </a>
+              </li>
+              <!-- ✅ NOUVEAU: Option pour gérer les liaisons User-Accessor -->
+              <li>
+                <a type="button" class="pl-3 py-1" (click)="openGestionLiaisons()">
+                  <i class="fa fa-link text-warning"></i> Gestion des Liaisons
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-striped mb-0 text-nowrap">
+            <thead>
+            <tr>
+              <th>ID
+                <button class="btn-tri-transparent" (click)="sortColumn('id')"><i class="fa"
+                                                                                  [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'id' || sort.direction === 'asc',
+            'fa-sort-alpha-desc': sort.field === 'id' && sort.direction === 'desc'
+             }" ></i></button>
+              </th>
+
+              <th>Username
+                <button class="btn-tri-transparent" (click)="sortColumn('login')"><i class="fa"
+                                                                                     [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'login' || sort.direction === 'asc',
+                    'fa-sort-alpha-desc': sort.field === 'login' && sort.direction === 'desc'
+                     }" ></i></button>
+              </th>
+              <th>Nom
+                <button class="btn-tri-transparent" (click)="sortColumn('nom')"><i class="fa"
+                                                                                   [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'nom' || sort.direction === 'asc',
+            'fa-sort-alpha-desc': sort.field === 'nom' && sort.direction === 'desc'
+             }" ></i></button>
+              </th>
+              <th>Prenom
+                <button class="btn-tri-transparent" (click)="sortColumn('prenom')"><i class="fa"
+                                                                                      [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'prenom' || sort.direction === 'asc',
+            'fa-sort-alpha-desc': sort.field === 'prenom' && sort.direction === 'desc'
+             }" ></i></button>
+              </th>
+              <th>Email
+                <button class="btn-tri-transparent" (click)="sortColumn('email')"><i class="fa"
+                                                                                     [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'email' || sort.direction === 'asc',
+            'fa-sort-alpha-desc': sort.field === 'email' && sort.direction === 'desc'
+             }" ></i></button>
+              </th>
+
+
+              <th>Accessor ID
+                <button class="btn-tri-transparent" (click)="sortColumn('accessorId')">
+                  <i class="fa" [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'accessorId' || sort.direction === 'asc',
+                      'fa-sort-alpha-desc': sort.field === 'accessorId' && sort.direction === 'desc'}"></i>
+                </button>
+              </th>
+
+              <th>Connecté le
+                <button class="btn-tri-transparent" (click)="sortColumn('dernierConnexion')"><i class="fa"
+                                                                                                [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'dernierConnexion' || sort.direction === 'asc',
+            'fa-sort-alpha-desc': sort.field === 'dernierConnexion' && sort.direction === 'desc'
+             }" ></i></button>
+              </th>
+
+              <th>Statut
+                <button class="btn-tri-transparent" (click)="sortColumn('statut')"><i class="fa"
+                                                                                      [ngClass]="{'fa-sort-alpha-asc' : sort.field !== 'statut' || sort.direction === 'asc',
+            'fa-sort-alpha-desc': sort.field === 'statut' && sort.direction === 'desc'
+             }" ></i></button>
+              </th>
+              <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr *ngFor="let user of getFilteredUsers() | psearch: pfiltre | paginate:{ itemsPerPage: tableSize, currentPage: page, totalItems: count }">
+              <td>{{user.id}}</td>
+              <td>{{user.login}}</td>
+              <td>{{user.nom}}</td>
+              <td>{{user.prenom}}</td>
+              <td>{{user.email}}</td>
+
+              <!-- ✅ NOUVELLE CELLULE: Affichage de l'accessor lié -->
+              <td>
+                <span *ngIf="hasAccessorLink(user.id)" class="tag tag-success">
+                  <i class="fa fa-link mr-1"></i>
+                  {{getAccessorIdDisplay(user.id)}}
+                </span>
+                <span *ngIf="!hasAccessorLink(user.id)" class="tag tag-warning">
+                  <i class="fa fa-unlink mr-1"></i>
+                  Non lié
+                </span>
+              </td>
+
+              <td>{{user.dernierConnexion}}</td>
+
+              <td>
+                <span *ngIf="isUserActive(user)" class="tag tag-success">Actif</span>
+                <span *ngIf="!isUserActive(user)" class="tag tag-danger">Inactif</span>
+              </td>
+
+              <td class="actions-column">
+                <div class="dropdown" style="top: -10px;">
+                  <button
+                    class="dropdown-btn"
+                    (click)="toggleDropdown($event, user)"
+                    [attr.aria-expanded]="isDropdownOpen(user)"
+                    [class.active]="isDropdownOpen(user)"
+                    aria-haspopup="true"
+                    title="Options pour {{ user.nom}}">
+                    <div class="three-dots">
+                      <div class="dot"></div>
+                      <div class="dot"></div>
+                      <div class="dot"></div>
+                    </div>
+                  </button>
+
+                  <!-- Menu dropdown -->
+                  <div
+                    class="dropdown-content"
+                    [class.show]="isDropdownOpen(user)"
+                    role="menu">
+
+                    <!-- ✅ MODIFIÉ: Affaires seulement si accessor lié -->
+                    <a
+                      *ngIf="hasAccessorLink(user.id)"
+                      class="dropdown-item"
+                      (click)="affectAffaire(user)"
+                      role="menuitem"
+                      tabindex="0">
+                      <i class="icon icon-building"></i>
+                      Affaires
+                    </a>
+                    <a
+                      *ngIf="!hasAccessorLink(user.id)"
+                      class="dropdown-item disabled"
+                      title="Veuillez d'abord lier cet utilisateur à un accessor"
+                      role="menuitem"
+                      tabindex="-1">
+                      <i class="icon icon-building text-muted"></i>
+                      <span class="text-muted">Affaires (non disponible)</span>
+                    </a>
+                    <button #btnFake class="d-none" data-toggle="modal" data-target="#affectAffaireModal"></button>
+
+                    <a
+                      class="dropdown-item"
+                      (click)="affectAccess(user)"
+                      role="menuitem"
+                      tabindex="0">
+                      <i class="icon icon-access"></i>
+                      Accès
+                    </a>
+                    <button #btnFake class="d-none" data-toggle="modal" data-target="#affectAccessModal"></button>
+
+                    <a
+                      class="dropdown-item"
+                      (click)="affectRole(user)"
+                      role="menuitem"
+                      tabindex="0">
+                      <i class="icon icon-users"></i>
+                      Rôles
+                    </a>
+
+
+                    <div class="dropdown-divider"></div>
+
+                    <a
+                      *ngIf="!isUserActive(user)"
+                      class="dropdown-item text-success"
+                      (click)="activerUtilisateur(user)"
+                      role="menuitem"
+                      tabindex="0">
+                      <i class="icon icon-check-circle"></i>
+                      Activer
+                    </a>
+
+                    <a
+                      *ngIf="isUserActive(user)"
+                      class="dropdown-item text-danger"
+                      (click)="desactiverUtilisateur(user)"
+                      role="menuitem"
+                      tabindex="0">
+                      <i class="icon icon-x-circle"></i>
+                      Désactiver
+                    </a>
+
+                    <button #btnFake class="d-none" data-toggle="modal" data-target="#affectRoleModal"></button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+
+          <div class="pagination-wrapper mt-3 d-flex justify-content-center">
+            <pagination-controls
+              previousLabel="Précédent"
+              nextLabel="Suivant"
+              (pageChange)="onTableDataChange($event)">
+            </pagination-controls>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!------------------------✅ NOUVEAU Modal Créer Liaison ----------------------------->
+<div class="modal fade" id="creerLiaisonModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">
+          <i class="fa fa-plus-circle mr-2"></i>
+          Créer une Liaison User-Accessor
+        </h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" *ngIf="userSelected">
+        <div class="row">
+          <!-- Informations utilisateur sélectionné -->
+          <div class="col-md-6">
+            <div class="card border-primary">
+              <div class="card-header bg-primary text-white">
+                <h6 class="mb-0">
+                  <i class="fa fa-user mr-2"></i>
+                  Utilisateur Sélectionné
+                </h6>
+              </div>
+              <div class="card-body">
+                <p><strong>ID:</strong> {{userSelected.id}}</p>
+                <p><strong>Nom:</strong> {{userSelected.nom}} {{userSelected.prenom}}</p>
+                <p><strong>Login:</strong> {{userSelected.login}}</p>
+                <p><strong>Email:</strong> {{userSelected.email}}</p>
+                <p><strong>Matricule:</strong> {{userSelected.matricule}}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sélection d'accessor -->
+          <div class="col-md-6">
+            <div class="card border-success">
+              <div class="card-header bg-success text-white">
+                <h6 class="mb-0">
+                  <i class="fa fa-cog mr-2"></i>
+                  Sélectionner un Accessor
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label for="accessorSelect">Accessor ID</label>
+<!--                  <input-->
+<!--                    type="number"-->
+<!--                    id="accessorSelect"-->
+<!--                    class="form-control"-->
+<!--                    [(ngModel)]="selectedAccessorId"-->
+<!--                    placeholder="Saisissez l'ID de l'accessor"-->
+<!--                    min="1">-->
+                  <small class="form-text text-muted">
+                    Entrez l'ID de l'accessor à lier avec cet utilisateur
+                  </small>
+                </div>
+
+                <div class="alert alert-warning">
+                  <i class="fa fa-exclamation-triangle mr-2"></i>
+                  <strong>Attention:</strong> Assurez-vous que l'accessor existe dans la base KdnsAccessor.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="row mt-3">
+          <div class="col-12 text-right">
+            <button
+              type="button"
+              class="btn btn-secondary mr-2"
+              data-dismiss="modal">
+              <i class="fa fa-times mr-1"></i>
+              Annuler
+            </button>
+<!--            <button-->
+<!--              type="button"-->
+<!--              class="btn btn-success"-->
+<!--              (click)="creerLiaison()"-->
+<!--              [disabled]="!selectedAccessorId || isLoading">-->
+<!--              <i class="fa fa-link mr-1"></i>-->
+<!--              <span *ngIf="!isLoading">Créer la Liaison</span>-->
+<!--              <span *ngIf="isLoading">-->
+<!--                <i class="fa fa-spinner fa-spin"></i>-->
+<!--                Création...-->
+<!--              </span>-->
+<!--            </button>-->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!------------------------Modal Affect Access ----------------------------->
+<div class="modal fade" id="affectAccessModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <app-affectation-user-access
+    *ngIf="showModal"
+    [userSelected]="userSelected"
+  ></app-affectation-user-access>
+</div>
+
+<!------------------------Modal Affect Role ----------------------------->
+<div class="modal fade" id="affectRoleModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <app-affectation-user-role
+    *ngIf="showModal"
+    [userSelected]="userSelected"
+  ></app-affectation-user-role>
+</div>
+
+<!------------------------Modal Gestion Access ----------------------------->
+<div class="modal fade" id="gestionAccessModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-primary">Gestion des Accès</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <!-- Liste des accès existants -->
+          <div class="col-md-8">
+            <h6>Liste des Accès</h6>
+            <div class="table-responsive">
+              <table class="table table-striped">
+                <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Code</th>
+                  <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr *ngFor="let access of listeAccess">
+                  <td>{{access.id}}</td>
+                  <td>{{access.code}}</td>
+                  <td>
+                    <button class="btn btn-sm btn-danger" (click)="supprimerAccess(access.id)">
+                      <i class="fa fa-trash"></i> Supprimer
+                    </button>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Formulaire d'ajout -->
+          <div class="col-md-4">
+            <h6>Ajouter un Accès</h6>
+            <form (ngSubmit)="ajouterAccess()">
+              <div class="form-group">
+                <label>Code</label>
+                <input type="text" class="form-control" [(ngModel)]="nouvelAccess.code" name="code" required>
+              </div>
+              <button type="submit" class="btn btn-primary">Ajouter</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!------------------------Modal Gestion Roles ----------------------------->
+<div class="modal fade" id="gestionRolesModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-info">Gestion des Rôles</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <!-- Liste des rôles existants -->
+          <div class="col-md-8">
+            <h6>Liste des Rôles</h6>
+            <div class="table-responsive">
+              <table class="table table-striped">
+                <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nom</th>
+                  <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr *ngFor="let role of listeRolesComplete">
+                  <td>{{role.id}}</td>
+                  <td>{{role.name}}</td>
+                  <td>
+                    <button class="btn btn-sm btn-danger" (click)="supprimerRole(role.id)">
+                      <i class="fa fa-trash"></i> Supprimer
+                    </button>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Formulaire d'ajout -->
+          <div class="col-md-4">
+            <h6>Ajouter un Rôle</h6>
+            <form (ngSubmit)="ajouterRole()">
+              <div class="form-group">
+                <label>Nom</label>
+                <input type="text" class="form-control" [(ngModel)]="nouveauRole.name" name="name" required>
+              </div>
+
+              <button type="submit" class="btn btn-info">Ajouter</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade" id="affectAffaireModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <app-affectation-user-affaire
+    [userSelected]="userSelected"
+    [accessorSelected]="accessorSelected"
+    *ngIf="showModal && userSelected && accessorSelected">
+  </app-affectation-user-affaire>
+</div>

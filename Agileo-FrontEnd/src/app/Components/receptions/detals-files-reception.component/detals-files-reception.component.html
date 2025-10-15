@@ -1,0 +1,362 @@
+<!-- details-files-reception.component.html - VERSION HARMONISÉE AVEC DEMANDES D'ACHAT - CORRIGÉE -->
+
+<!-- État de chargement -->
+<div *ngIf="loading" class="text-center py-4">
+  <div class="spinner-border text-primary" role="status">
+    <span class="sr-only">Chargement...</span>
+  </div>
+  <p class="mt-2 text-muted">Chargement des fichiers joints...</p>
+</div>
+
+<!-- Erreur -->
+<div *ngIf="error && !loading" class="alert alert-danger">
+  <i class="fa fa-exclamation-triangle"></i>
+  <strong>Erreur:</strong> {{ errorMessage }}
+  <br>
+  <button class="btn btn-sm btn-outline-danger mt-2" (click)="loadFiles()">
+    <i class="fa fa-refresh"></i> Réessayer
+  </button>
+</div>
+
+<!-- Contenu principal -->
+<div *ngIf="!loading && !error">
+
+
+
+  <!-- Fichiers sélectionnés -->
+  <div *ngIf="selectedFiles.length > 0" class="mb-4">
+    <h6 class="text-muted mb-2">
+      <i class="fa fa-check-circle text-success mr-1"></i>
+      Fichiers sélectionnés ({{ selectedFiles.length }})
+    </h6>
+
+    <div class="selected-files">
+      <div *ngFor="let file of selectedFiles; let i = index"
+           class="selected-file-item">
+        <div class="file-info">
+          <i [class]="getFileIcon(file.name)"></i>
+          <div class="file-details">
+            <span class="file-name" [title]="file.name">{{ file.name }}</span>
+            <small class="file-size text-muted">{{ formatFileSize(file.size) }}</small>
+          </div>
+        </div>
+        <button type="button"
+                class="btn btn-sm btn-outline-danger"
+                (click)="removeSelectedFile(i)"
+                [disabled]="isUploading"
+                title="Retirer de la sélection">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="mt-3 d-flex justify-content-between">
+      <button type="button"
+              class="btn btn-outline-secondary btn-sm"
+              (click)="clearSelectedFiles()"
+              [disabled]="isUploading">
+        <i class="fa fa-trash mr-1"></i>
+        Vider la sélection
+      </button>
+
+      <button type="button"
+              class="btn btn-success"
+              (click)="uploadSelectedFiles()"
+              [disabled]="isUploading || selectedFiles.length === 0">
+        <span *ngIf="isUploading" class="spinner-border spinner-border-sm mr-2"></span>
+        <i *ngIf="!isUploading" class="fa fa-upload mr-1"></i>
+        {{ isUploading ? 'Upload en cours...' : 'Uploader ' + selectedFiles.length + ' fichier(s)' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Liste des fichiers existants -->
+  <div *ngIf="listPiecesJointes && listPiecesJointes.length > 0">
+    <h6 class="text-primary mb-3">
+      <i class="fa fa-paperclip mr-2"></i>
+      Pièces Jointes
+      <span class="badge badge-secondary ml-2">{{ listPiecesJointes.length }}</span>
+    </h6>
+
+    <div class="row">
+      <div class="col-md-6 col-lg-4 mb-3" *ngFor="let file of listPiecesJointes">
+        <div class="card file-card h-100 border-light">
+          <div class="card-body p-3">
+            <!-- Nom du fichier -->
+            <h6 class="card-title text-truncate" [title]="file.fullFileName || file.name">
+              <i class="fa fa-file-text-o text-muted mr-2"></i>
+              {{ file.fullFileName || file.name || 'Fichier sans nom' }}
+            </h6>
+
+            <!-- Métadonnées -->
+            <div class="file-metadata">
+              <small class="text-muted d-block" *ngIf="file.sizeFormatted || file.size">
+                <i class="fa fa-hdd-o"></i>
+                {{ file.sizeFormatted || formatFileSize(file.size) }}
+              </small>
+              <small class="text-muted d-block" *ngIf="file.uploadDate">
+                <i class="fa fa-calendar"></i>
+                {{ file.uploadDate | date:'dd/MM/yyyy HH:mm' }}
+              </small>
+              <small class="text-muted d-block" *ngIf="file.uploadedByNom">
+                <i class="fa fa-user"></i>
+                {{ file.uploadedByNom }}
+              </small>
+              <span class="badge badge-info badge-sm mt-1">
+                {{ file.extension?.toUpperCase() || 'FICHIER' }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="card-footer bg-light p-2">
+            <div class="btn-group w-100" role="group">
+
+              <button type="button"
+                      class="btn btn-outline-success btn-sm"
+                      (click)="downloadFile(file.fileId, file.fullFileName || file.name)"
+                      [disabled]="loading"
+                      title="Télécharger">
+                <i class="fa fa-download"></i>
+                Télécharger
+              </button>
+              <!-- Bouton de suppression -->
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Message si limite atteinte -->
+  <div *ngIf="!canAddMoreFiles()" class="alert alert-info">
+    <i class="fa fa-info-circle mr-2"></i>
+    <strong>Limite atteinte:</strong> Maximum {{ maxFiles }} fichiers par réception.
+  </div>
+
+  <!-- Message si aucun fichier -->
+  <div *ngIf="(!listPiecesJointes || listPiecesJointes.length === 0) && selectedFiles.length === 0"
+       class="alert alert-info text-center">
+    <i class="fa fa-file-text-o fa-2x mb-2"></i>
+    <h6>Aucune pièce jointe</h6>
+    <p class="mb-0">Cette réception ne contient aucune pièce jointe.</p>
+  </div>
+</div>
+
+<!-- Modal de prévisualisation -->
+<div class="modal fade"
+     id="previewModal"
+     tabindex="-1"
+     role="dialog"
+     aria-hidden="true"
+     [style.display]="isModalOpen ? 'block' : 'none'"
+     (click)="onModalBackdropClick($event)">
+  <div class="modal-dialog modal-xl" role="document" (click)="onModalContentClick($event)">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fa fa-eye"></i>
+          Aperçu - {{ selectedFileName }}
+        </h5>
+        <button type="button"
+                class="close"
+                aria-label="Fermer"
+                (click)="closeModal()">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body text-center">
+        <!-- Chargement de la prévisualisation -->
+        <div *ngIf="previewLoading" class="py-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="sr-only">Chargement...</span>
+          </div>
+          <p class="mt-3">Préparation de l'aperçu...</p>
+        </div>
+
+        <!-- Message si fichier non prévisualisable -->
+        <div *ngIf="!previewLoading && !previewUrl && selectedFileName" class="py-4">
+          <i class="fa fa-file-o fa-3x text-muted mb-3"></i>
+          <h5>Aperçu non disponible</h5>
+          <p class="text-muted">
+            Ce type de fichier ne peut pas être prévisualisé.<br>
+            Vous pouvez le télécharger pour l'ouvrir avec l'application appropriée.
+          </p>
+          <div class="mt-3">
+            <strong>Extension:</strong> {{ getFileExtension(selectedFileName) }}
+          </div>
+        </div>
+
+        <!-- Iframe pour prévisualisation -->
+        <div *ngIf="previewUrl && !previewLoading" class="preview-container">
+          <iframe [src]="previewUrl"
+                  width="100%"
+                  height="500px"
+                  frameborder="0"
+                  class="border rounded"
+                  [title]="'Aperçu de ' + selectedFileName">
+          </iframe>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button"
+                class="btn btn-secondary"
+                (click)="closeModal()">
+          <i class="fa fa-times"></i>
+          Fermer
+        </button>
+        <button type="button"
+                class="btn btn-success"
+                (click)="downloadCurrentFile()"
+                [disabled]="!currentFileId">
+          <i class="fa fa-download"></i>
+          Télécharger
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Styles harmonisés avec demandes d'achat */
+  .upload-zone {
+    border: 2px dashed #007bff;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+  }
+
+  .upload-zone:hover,
+  .upload-zone.drag-over {
+    border-color: #0056b3;
+    background-color: #e7f3ff;
+  }
+
+  .upload-icon {
+    font-size: 3rem;
+    color: #007bff;
+    margin-bottom: 1rem;
+  }
+
+  .upload-text {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .selected-files {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .selected-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+    background-color: #fff;
+  }
+
+  .file-info {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .file-info i {
+    font-size: 1.25rem;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .file-details {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .file-name {
+    display: block;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-size {
+    font-size: 0.875rem;
+  }
+
+  .file-card {
+    transition: transform 0.2s ease-in-out;
+  }
+
+  .file-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+
+  .file-metadata small {
+    line-height: 1.4;
+  }
+
+  .file-metadata i {
+    margin-right: 0.5rem;
+    width: 12px;
+    text-align: center;
+  }
+
+  .preview-container {
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .modal-xl {
+    max-width: 90%;
+  }
+
+  @media (max-width: 768px) {
+    .modal-xl {
+      max-width: 95%;
+      margin: 1rem;
+    }
+
+    .upload-zone {
+      padding: 1.5rem;
+    }
+
+    .upload-icon {
+      font-size: 2rem;
+    }
+
+    .btn-group .btn {
+      font-size: 12px;
+      padding: 0.25rem 0.4rem;
+    }
+  }
+
+  /* Amélioration des boutons pour mobile */
+  @media (max-width: 576px) {
+    .btn-group {
+      flex-direction: column;
+    }
+
+    .btn-group .btn {
+      border-radius: 0.25rem !important;
+      margin-bottom: 2px;
+    }
+
+    .btn-group .btn:last-child {
+      margin-bottom: 0;
+    }
+  }
+</style>
