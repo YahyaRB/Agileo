@@ -105,6 +105,13 @@
             <span>Consommations</span>
           </a>
         </li>
+        <!-- Server Time -->
+        <li *ngIf="canAccessServerTime()">
+          <a routerLink="/ServerTime" data-tooltip="Demande d'Achat">
+            <i class="fa fa-times-circle"></i>
+            <span>Server Time</span>
+          </a>
+        </li>
       </ul>
     </nav>
   </div>

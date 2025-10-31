@@ -1,0 +1,194 @@
+<div class="container mt-4">
+  <div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">
+        <i class="bi bi-clock-history"></i>
+        Informations Temporelles Keycloak
+      </h5>
+    </div>
+
+    <div class="card-body">
+      <!-- Loading -->
+      <div *ngIf="isLoading" class="text-center py-4">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Chargement...</span>
+        </div>
+      </div>
+
+      <!-- Contenu -->
+      <div *ngIf="!isLoading">
+        <!-- Section Dates -->
+        <div class="row mb-4">
+          <div class="col-md-6">
+            <div class="info-box p-3 bg-light rounded">
+              <h6 class="text-primary mb-2">
+                <i class="bi bi-server"></i> Date Serveur Keycloak
+              </h6>
+              <p class="mb-0 fw-bold" *ngIf="serverTime">
+                {{ serverTime | date:'full':'':'fr' }}
+              </p>
+              <small class="text-muted" *ngIf="serverTime">
+                {{ serverTime | date:'medium' }}
+              </small>
+              <p class="text-danger" *ngIf="!serverTime">
+                Impossible de récupérer la date du serveur
+              </p>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="info-box p-3 bg-light rounded">
+              <h6 class="text-success mb-2">
+                <i class="bi bi-laptop"></i> Date Locale (Navigateur)
+              </h6>
+              <p class="mb-0 fw-bold">
+                {{ localTime | date:'full':'':'fr' }}
+              </p>
+              <small class="text-muted">
+                {{ localTime | date:'medium' }}
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Décalage -->
+        <div class="alert alert-info" *ngIf="timeDifference">
+          <i class="bi bi-alarm"></i>
+          <strong>Décalage temporel:</strong> {{ timeDifference }}
+        </div>
+
+        <hr>
+
+        <!-- Détails du Token -->
+        <div *ngIf="tokenDetails" class="mt-4">
+          <h6 class="text-primary mb-3">
+            <i class="bi bi-key"></i> Détails du Token JWT
+          </h6>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <div class="card">
+                <div class="card-body">
+                  <h6 class="card-subtitle mb-2 text-muted">Émis le</h6>
+                  <p class="card-text" *ngIf="tokenDetails.issuedAt">
+                    {{ tokenDetails.issuedAt | date:'medium' }}
+                  </p>
+                  <small class="text-muted" *ngIf="tokenDetails.issuedAt">
+                    {{ tokenDetails.issuedAt | date:'short' }}
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <div class="card"
+                   [ngClass]="{
+                     'border-danger': isTokenExpired(),
+                     'border-warning': isTokenExpiringSoon()
+                   }">
+                <div class="card-body">
+                  <h6 class="card-subtitle mb-2 text-muted">Expire le</h6>
+                  <p class="card-text"
+                     [ngClass]="{
+                       'text-danger': isTokenExpired(),
+                       'text-warning': isTokenExpiringSoon()
+                     }"
+                     *ngIf="tokenDetails.expiresAt">
+                    {{ tokenDetails.expiresAt | date:'medium' }}
+                  </p>
+                  <small class="text-muted" *ngIf="tokenDetails.expiresAt">
+                    {{ tokenDetails.expiresAt | date:'short' }}
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <div class="card bg-light">
+                <div class="card-body text-center">
+                  <h6 class="card-subtitle mb-2 text-muted">Durée de vie</h6>
+                  <h5 class="card-title text-primary mb-0">
+                    {{ getTokenLifetime() }}
+                  </h5>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <div class="card bg-light">
+                <div class="card-body text-center">
+                  <h6 class="card-subtitle mb-2 text-muted">Temps restant</h6>
+                  <h5 class="card-title mb-0"
+                      [ngClass]="{
+                        'text-danger': isTokenExpired(),
+                        'text-warning': isTokenExpiringSoon(),
+                        'text-success': !isTokenExpired() && !isTokenExpiringSoon()
+                      }">
+                    {{ getRemainingTime() }}
+                  </h5>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-4 mb-3" *ngIf="tokenDetails.authTime">
+              <div class="card bg-light">
+                <div class="card-body text-center">
+                  <h6 class="card-subtitle mb-2 text-muted">Authentifié le</h6>
+                  <small class="text-muted">
+                    {{ tokenDetails.authTime | date:'short' }}
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Informations supplémentaires -->
+          <div class="mt-3">
+            <div class="accordion" id="additionalInfo">
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapseDetails">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Informations supplémentaires
+                  </button>
+                </h2>
+                <div id="collapseDetails"
+                     class="accordion-collapse collapse"
+                     data-bs-parent="#additionalInfo">
+                  <div class="accordion-body">
+                    <dl class="row mb-0">
+                      <dt class="col-sm-3">Issuer:</dt>
+                      <dd class="col-sm-9">
+                        <small class="text-muted">{{ tokenDetails.issuer }}</small>
+                      </dd>
+
+                      <dt class="col-sm-3">Subject:</dt>
+                      <dd class="col-sm-9">
+                        <small class="text-muted">{{ tokenDetails.subject }}</small>
+                      </dd>
+
+                      <dt class="col-sm-3">Audience:</dt>
+                      <dd class="col-sm-9">
+                        <small class="text-muted">{{ tokenDetails.audience }}</small>
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bouton rafraîchir -->
+        <div class="text-center mt-4">
+          <button class="btn btn-primary" (click)="refresh()">
+            <i class="bi bi-arrow-clockwise"></i> Rafraîchir
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

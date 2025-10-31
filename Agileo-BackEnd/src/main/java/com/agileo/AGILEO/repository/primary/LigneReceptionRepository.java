@@ -35,4 +35,6 @@ public interface LigneReceptionRepository extends JpaRepository<LigneReception, 
     List<LigneReception> findByAffaireIn(List<String> affaires);
     List<LigneReception> findByAffaireInAndSysCreationDateAfter(List<String> affaires, LocalDateTime date);
     List<LigneReception> findBySysCreationDateAfter(LocalDateTime date);
+    @Query("SELECT COALESCE(SUM(l.qte), 0) FROM LigneReception l WHERE l.entId = :entId")
+    BigDecimal sumQuantiteByEntId(@Param("entId") Integer entId);
 }

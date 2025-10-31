@@ -54,6 +54,7 @@ import {
 // Import du service FileService et de l'intercepteur
 import { FileService } from './services/file-service.service';
 import {DashboardService} from "./services/dashboard.service";
+import { ServerTimeCheckerComponent } from './Auth/server-time-checker/server-time-checker.component';
 
 function initializeKeycloak(keycloak: KeycloakService) {
   return () =>
@@ -107,6 +108,7 @@ function initializeKeycloak(keycloak: KeycloakService) {
     AddConsommationComponent,
     DeleteConsommationComponent,
     LigneConsommationComponent,
+    ServerTimeCheckerComponent,
   ],
   imports: [
     BrowserModule,

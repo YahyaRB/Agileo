@@ -1294,16 +1294,25 @@ export class ListReceptionsComponent implements OnInit, OnDestroy {
 
   envoyerDemandeConfirmed() {
     if (this.receptionEnCoursDEnvoi) {
-      this.receptionService.updateReception(this.receptionEnCoursDEnvoi.id!, this.receptionEnCoursDEnvoi).subscribe({
-        next: () => {
-          this.notifyService.showSuccess(`Réception #${this.receptionEnCoursDEnvoi!.id} envoyée`, 'Envoi confirmé');
+      const receptionId = this.receptionEnCoursDEnvoi.id!;
+      const nouveauStatut = 1; // ✅ Définir le statut souhaité (1 = En cours, 2 = Envoyée, etc.)
+
+      this.receptionService.updateReceptionStatut(receptionId, nouveauStatut).subscribe({
+        next: (response) => {
+          this.notifyService.showSuccess(
+            `Réception #${receptionId} envoyée`,
+            'Envoi confirmé'
+          );
           this.loadReceptions();
           this.fermerModalConfirmationEnvoi();
           this.fermerModalDetails();
         },
         error: (err) => {
           console.error('Erreur envoi:', err);
-          this.notifyService.showError('Erreur lors de l\'envoi', 'Erreur');
+          this.notifyService.showError(
+            'Erreur lors de l\'envoi: ' + (err.error?.message || err.message),
+            'Erreur'
+          );
           this.fermerModalConfirmationEnvoi();
         }
       });

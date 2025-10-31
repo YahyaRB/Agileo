@@ -94,4 +94,5 @@ public interface ReceptionService {
      * Récupérer les fichiers associés à une réception
      */
     List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId);
+    ResponseMessage updateReceptionStatut(Integer receptionId, Integer newStatut, String currentUsername);
 }

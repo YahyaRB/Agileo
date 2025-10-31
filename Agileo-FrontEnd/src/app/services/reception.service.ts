@@ -284,5 +284,11 @@ export class ReceptionService {
       responseType: 'blob'
     });
   }
-
+  updateReceptionStatut(receptionId: number, statut: number): Observable<any> {
+    return this.http.put<any>(
+      `${environment.apiUrl}${AUTH_API}/${receptionId}/statut`,
+      { statut: statut },
+      httpOptions
+    );
+  }
 }

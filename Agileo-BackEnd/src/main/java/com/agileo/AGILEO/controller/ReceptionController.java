@@ -24,6 +24,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -645,5 +647,55 @@ public class ReceptionController {
         }
     }
 
+    /**
+     * Endpoint pour changer le statut d'une réception
+     */
+    @PutMapping("/{id}/statut")
+    public ResponseEntity<ResponseMessage> updateReceptionStatut(
+            @PathVariable Integer id,
+            @RequestBody Map<String, Integer> request,
+            Authentication authentication) {  // ✅ CHANGEMENT ICI
 
+        System.out.println("========================================");
+        System.out.println("🎯 DÉBUT ENDPOINT /statut");
+        System.out.println("ID reçu: " + id);
+        System.out.println("Request body: " + request);
+
+        try {
+            System.out.println("✅ Extraction du statut...");
+            Integer newStatut = request.get("statut");
+            System.out.println("Nouveau statut: " + newStatut);
+
+            if (newStatut == null) {
+                return ResponseEntity.badRequest()
+                        .body(new ResponseMessage("Le statut est obligatoire"));
+            }
+
+            // ✅ MÊME PATTERN QUE DemandeAchatController
+            String currentUsername = authentication != null ? authentication.getName() : "system";
+            System.out.println("✅ Username: " + currentUsername);
+
+            System.out.println("✅ Appel du service...");
+            ResponseMessage response = receptionService.updateReceptionStatut(id, newStatut, currentUsername);
+
+            System.out.println("✅ SUCCESS - Retour du service OK");
+            return ResponseEntity.ok(response);
+
+        } catch (BadRequestException e) {
+            System.err.println("❌ BadRequestException: " + e.getMessage());
+            return ResponseEntity.badRequest().body(new ResponseMessage(e.getMessage()));
+        } catch (ResourceNotFoundException e) {
+            System.err.println("❌ ResourceNotFoundException: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ResponseMessage(e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("========================================");
+            System.err.println("❌❌❌ ERREUR CAPTURÉE ❌❌❌");
+            System.err.println("Message: " + e.getMessage());
+            System.err.println("Type: " + e.getClass().getName());
+            e.printStackTrace();
+            System.err.println("========================================");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseMessage("Erreur: " + e.getMessage()));
+        }
+    }
 }

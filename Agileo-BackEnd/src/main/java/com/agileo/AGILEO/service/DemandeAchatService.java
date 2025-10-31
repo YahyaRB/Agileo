@@ -38,7 +38,7 @@ public interface DemandeAchatService {
      * @param currentUsername L'utilisateur qui effectue l'opération
      * @return Message de confirmation
      */
-    ResponseMessage updateDemandeAchatStatut(Integer demandeID, String currentUsername);
+
 
     /**
      * Changer le statut d'une demande d'achat avec un statut personnalisé

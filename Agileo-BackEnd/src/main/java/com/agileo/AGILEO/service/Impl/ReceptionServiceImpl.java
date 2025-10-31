@@ -11,6 +11,7 @@ import com.agileo.AGILEO.exception.BadRequestException;
 import com.agileo.AGILEO.exception.ResourceNotFoundException;
 import com.agileo.AGILEO.message.ResponseMessage;
 import com.agileo.AGILEO.repository.primary.*;
+import com.agileo.AGILEO.service.DivaltoIntegrationReceptionService;
 import com.agileo.AGILEO.service.ReceptionService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -40,6 +41,8 @@ public class ReceptionServiceImpl implements ReceptionService {
     private final CommandeRepository commandeRepository;
     private final VentilationArticleRepository ventilationArticleRepository;
     private final KdnFileGroupRepository kdnFileGroupRepository;
+    private final DivaltoIntegrationReceptionService divaltoIntegrationReceptionService;
+
     public ReceptionServiceImpl(
             ReceptionRepository receptionRepository,
             LigneReceptionRepository ligneReceptionRepository,
@@ -50,7 +53,7 @@ public class ReceptionServiceImpl implements ReceptionService {
             CommandeRepository commandeRepository,
             VentilationArticleRepository ventilationArticleRepository,
             KdnFileRepository kdnFileRepository,
-            KdnFileGroupRepository kdnFileGroupRepository) {
+            KdnFileGroupRepository kdnFileGroupRepository, DivaltoIntegrationReceptionService divaltoIntegrationReceptionService) {
 
         this.receptionRepository = receptionRepository;
         this.ligneReceptionRepository = ligneReceptionRepository;
@@ -62,6 +65,7 @@ public class ReceptionServiceImpl implements ReceptionService {
         this.ventilationArticleRepository = ventilationArticleRepository;
         this.kdnFileRepository = kdnFileRepository;
         this.kdnFileGroupRepository = kdnFileGroupRepository; // CORRECTION: Cette ligne était manquante !
+        this.divaltoIntegrationReceptionService = divaltoIntegrationReceptionService;
     }
     // ==================== CRÉATION ET GESTION DES RÉCEPTIONS ====================
 
@@ -1069,6 +1073,86 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
                 // Si le champ n'est pas reconnu, utiliser "numero" par défaut
                 System.out.println("⚠️ Champ de tri non reconnu: " + frontendField + ", utilisation de 'numero'");
                 return "numero";
+        }
+    }
+    /**
+     * ✅ NOUVELLE MÉTHODE : Changer le statut d'une réception avec intégration automatique dans Divalto
+     */
+    @Override
+    public ResponseMessage updateReceptionStatut(Integer receptionId, Integer newStatut, String currentUsername) {
+        try {
+            System.out.println("=== DÉBUT updateReceptionStatut ===");
+            System.out.println("Réception ID: " + receptionId);
+            System.out.println("Nouveau statut: " + newStatut);
+            System.out.println("Utilisateur: " + currentUsername);
+
+            Reception reception = getReceptionEntityById(receptionId);
+            Integer oldStatut = reception.getSysState();
+
+            // Validation : on ne peut pas remettre une réception envoyée en brouillon
+            if (oldStatut != null && oldStatut == 1 && newStatut == 0) {
+                throw new BadRequestException("Impossible de remettre une réception envoyée en brouillon");
+            }
+
+            // Mise à jour du statut
+            reception.setSysState(newStatut);
+
+            // Si on passe à "Envoyé" (statut 1), mettre à jour la date de réception
+            if (newStatut == 1 && (oldStatut == null || oldStatut == 0)) {
+                reception.setSysCreationDate(LocalDateTime.now());
+                System.out.println("✅ Date de réception mise à jour");
+            }
+
+            receptionRepository.save(reception);
+            System.out.println("✅ Réception sauvegardée avec le statut : " + newStatut);
+
+            // 🎯 INTÉGRATION DIVALTO
+            if (newStatut == 1) {
+                System.out.println("🚀 Statut = 1 détecté - Déclenchement intégration Divalto...");
+
+                try {
+                    // Vérifier qu'il y a bien des lignes dans la réception
+                    List<LigneReception> lignes = ligneReceptionRepository.findByEntId(reception.getNumero());
+                    System.out.println("📋 Nombre de lignes : " + lignes.size());
+
+                    if (lignes.isEmpty()) {
+                        System.err.println("⚠️ ATTENTION : Aucune ligne de réception !");
+                        throw new BadRequestException("Impossible d'envoyer une réception sans ligne d'article");
+                    }
+
+                    // Appel du service Divalto pour l'intégration
+                    System.out.println("🔄 Appel de divaltoIntegrationReceptionService.integrerReceptionDansDivalto()...");
+                    divaltoIntegrationReceptionService.integrerReceptionDansDivalto(receptionId, currentUsername);
+                    System.out.println("✅ Intégration Divalto TERMINÉE avec succès !");
+
+                } catch (Exception e) {
+                    System.err.println("❌ ERREUR Divalto: " + e.getMessage());
+                    e.printStackTrace();
+
+                    // ROLLBACK : remettre l'ancien statut
+                    reception.setSysState(oldStatut != null ? oldStatut : 0);
+                    receptionRepository.save(reception);
+                    System.out.println("🔄 Rollback effectué - statut restauré à : " + (oldStatut != null ? oldStatut : 0));
+
+                    throw new RuntimeException("Échec intégration Divalto : " + e.getMessage());
+                }
+            } else {
+                System.out.println("ℹ️ Statut différent de 1 - Pas d'intégration Divalto");
+            }
+
+            System.out.println("=== FIN updateReceptionStatut ===");
+
+            String statusLabel = newStatut == 1 ? "Envoyé" : "Brouillon";
+            return new ResponseMessage("Statut mis à jour : " + statusLabel +
+                    (newStatut == 1 ? " et intégré dans Divalto" : ""));
+
+        } catch (BadRequestException | ResourceNotFoundException e) {
+            System.err.println("❌ Erreur métier: " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            System.err.println("❌ Exception technique: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Erreur lors du changement de statut : " + e.getMessage(), e);
         }
     }
 }

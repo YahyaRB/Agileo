@@ -13,6 +13,7 @@ import { ListDemandeAchatComponent } from "./Components/demande-achat/list-deman
 import { LigneDemandeComponent } from "./Components/demande-achat/ligne-demande/ligne-demande.component";
 import { ListConsommationComponent } from "./Components/consommations/list-consommation/list-consommation.component";
 import { LigneConsommationComponent } from "./Components/consommations/ligne-consommation/ligne-consommation.component";
+import {ServerTimeCheckerComponent} from "./Auth/server-time-checker/server-time-checker.component";
 
 const routes: Routes = [
   // Route par défaut - Accueil
@@ -36,7 +37,16 @@ const routes: Routes = [
       breadcrumb: 'Utilisateurs'
     }
   },
-
+  // ===================== Afficher l'heure du serveur Keycloak =====================
+  {
+    path: 'ServerTime',
+    component:ServerTimeCheckerComponent,
+    canActivate: [AuthGuard],
+    data: {
+      roles: ['ADMIN'],
+      breadcrumb: 'ServerTime'
+    }
+  },
   // ===================== GESTION DES AFFAIRES =====================
   {
     path: 'Affaires',

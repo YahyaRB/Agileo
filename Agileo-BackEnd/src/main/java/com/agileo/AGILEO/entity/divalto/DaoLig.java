@@ -4,11 +4,12 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "DAOLIG")
+@Table(name = "DAOLIG", schema = "dbo")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -17,61 +18,61 @@ public class DaoLig {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "DAOLIG_ID")
-    private Long daoLigId;
+    private Integer daoLigId;
 
-    @Column(name = "CE1")
-    private Integer ce1;
+    @Column(name = "CE1", length = 1)
+    private String ce1;
 
-    @Column(name = "CE2")
-    private Integer ce2;
+    @Column(name = "CE2", length = 1)
+    private String ce2;
 
-    @Column(name = "CE3")
-    private Integer ce3;
+    @Column(name = "CE3", length = 1)
+    private String ce3;
 
-    @Column(name = "CE4")
-    private Integer ce4;
+    @Column(name = "CE4", length = 1)
+    private String ce4;
 
-    @Column(name = "CE5")
-    private Integer ce5;
+    @Column(name = "CE5", length = 1)
+    private String ce5;
 
-    @Column(name = "CE6")
-    private Integer ce6;
+    @Column(name = "CE6", length = 1)
+    private String ce6;
 
-    @Column(name = "CE7")
-    private Integer ce7;
+    @Column(name = "CE7", length = 1)
+    private String ce7;
 
-    @Column(name = "CE8")
-    private Integer ce8;
+    @Column(name = "CE8", length = 1)
+    private String ce8;
 
-    @Column(name = "CE9")
-    private Integer ce9;
+    @Column(name = "CE9", length = 1)
+    private String ce9;
 
-    @Column(name = "CEA")
-    private Integer cea;
+    @Column(name = "CEA", length = 1)
+    private String cea;
 
-    @Column(name = "DOS")
-    private Integer dos;
+    @Column(name = "DOS", length = 8)
+    private String dos;
 
     @Column(name = "DAOLGNO")
-    private Long daoLgNo;
+    private BigDecimal daolgno;
 
     @Column(name = "DAONO")
-    private Long daoNo;
+    private BigDecimal daoNo;
 
     @Column(name = "DAOTYP")
-    private Integer daoTyp;
+    private BigDecimal daoTyp;
 
     @Column(name = "LILG")
-    private Integer liLg;
+    private BigDecimal lilg;
 
-    @Column(name = "ETB")
-    private Integer etb;
+    @Column(name = "ETB", length = 3)
+    private String etb;
 
     @Column(name = "DEPO", length = 3)
     private String depo;
 
     @Column(name = "STATUS")
-    private Integer status;
+    private BigDecimal status;
 
     @Column(name = "REF", length = 25)
     private String ref;
@@ -88,78 +89,70 @@ public class DaoLig {
     @Column(name = "PROJET", length = 8)
     private String projet;
 
-    @Column(name = "QTEINI", precision = 18, scale = 4)
-    private BigDecimal qteIni;
+    @Column(name = "QTEINI")
+    private BigDecimal qteini;
 
     @Column(name = "ACHUN", length = 4)
-    private String achUn;
+    private String achun;
 
-    @Column(name = "REFQTE", precision = 18, scale = 4)
-    private BigDecimal refQte;
+    @Column(name = "REFQTE")
+    private BigDecimal refqte;
 
     @Column(name = "REFUN", length = 4)
-    private String refUn;
+    private String refun;
 
+    // ✅ CORRECTION : date au lieu de Integer
     @Column(name = "DELDEMDT")
-    private Integer delDemDt;
+    private LocalDate deldemdt;
 
     @Column(name = "DAOLGNOAO")
-    private Long daoLgNoAo;
+    private BigDecimal daolgnoao;
 
-    @Column(name = "TXTCOD", length = 10)
-    private String txtCod;
+    @Column(name = "TXTCOD")
+    private BigDecimal txtcod;
 
-    @Column(name = "TXTNOTE", length = 10)
-    private String txtNote;
+    @Column(name = "TXTNOTE")
+    private BigDecimal txtnote;
 
     @Column(name = "CENOTE")
-    private Integer ceNote;
+    private BigDecimal cenote;
 
     @Column(name = "NOTE")
-    private Long note;
+    private BigDecimal note;
 
     @Column(name = "CEJOINT")
-    private Integer ceJoint;
+    private BigDecimal cejoint;
+
 
     @Column(name = "JOINT")
-    private Long joint;
+    private BigDecimal joint;
 
-    @Column(name = "USERCR", length = 10)
-    private String userCr;
+    @Column(name = "USERCR", length = 20)
+    private String usercr;
 
-    @Column(name = "USERMO", length = 10)
-    private String userMo;
+    @Column(name = "USERMO", length = 20)
+    private String usermo;
 
+    // ✅ CORRECTION : datetime2 au lieu de Integer
     @Column(name = "USERCRDH")
-    private Long userCrDh;
+    private LocalDateTime usercrdh;
 
+    // ✅ CORRECTION : datetime2 au lieu de Integer
     @Column(name = "USERMODH")
-    private Long userMoDh;
+    private LocalDateTime usermodh;
 
     @Column(name = "ELEMNO")
-    private Long elemNo;
+    private BigDecimal elemno;
 
-    @Column(name = "AFRINDICE")
-    private Integer afrIndice;
+    @Column(name = "AFRINDICE", length = 4)
+    private String afrindice;
 
     @Column(name = "BESOINNO")
-    private Long besoinNo;
+    private BigDecimal besoinno;
 
-    @Column(name = "ARTIND")
-    private Integer artInd;
+    @Column(name = "ARTIND", length = 8)
+    private String artind;
 
-    @Column(name = "UP_MATERIEL", length = 50)
+    @Column(name = "UP_MATERIEL", length = 8)
     private String upMateriel;
-
-    @PrePersist
-    protected void onCreate() {
-        if (dos == null) dos = 1;
-        if (daoTyp == null) daoTyp = 1;
-        if (status == null) status = 1;
-        if (ce1 == null) ce1 = 2;
-        if (ce3 == null) ce3 = 1;
-        if (ceNote == null) ceNote = 1;
-        if (ceJoint == null) ceJoint = 1;
-        if (userCrDh == null) userCrDh = System.currentTimeMillis() / 1000;
-    }
 }

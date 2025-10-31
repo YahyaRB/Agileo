@@ -168,7 +168,11 @@ export class SidebarComponent  implements OnInit, OnDestroy {
       this.hasRole('CONSULTEUR') ||
       this.hasAccess('demande achat');
   }
+  canAccessServerTime(): boolean {
 
+    if (!this.currentUser) return false;
+    return this.hasRole('ADMIN') ;
+  }
   canAccessUtilisateurs(): boolean {
     if (!this.currentUser) return false;
     return this.hasRole('ADMIN') ||

@@ -309,7 +309,8 @@ public ResponseEntity<? > uploadFiles(
         try {
             String currentUsername = authentication != null ? authentication.getName() : "system";
 
-            ResponseMessage response = demandeAchatService.updateDemandeAchatStatut(id, currentUsername);
+            // ✅ CORRECTION : Passer le statut 1 (Envoyé) explicitement
+            ResponseMessage response = demandeAchatService.updateDemandeAchatStatut(id, 1, currentUsername);
 
             System.out.println("Statut mis à jour avec succès");
             return ResponseEntity.ok(response);
@@ -331,36 +332,6 @@ public ResponseEntity<? > uploadFiles(
     }
 
 
-    @PutMapping("/{id}/statut/{newStatus}")
-    public ResponseEntity<ResponseMessage> updateDemandeAchatStatut(
-            @PathVariable Integer id,
-            @PathVariable Integer newStatus,
-            Authentication authentication) {
-        try {
-            String currentUsername = authentication != null ? authentication.getName() : "system";
-
-            // Validation du statut
-            if (newStatus < -1 || newStatus > 3) {
-                return ResponseEntity.badRequest()
-                        .body(new ResponseMessage("Statut invalide. Valeurs acceptées: -1 (Rejeté), 0 (Brouillon), 1 (Envoyé), 2 (Reçu), 3 (Approuvé)"));
-            }
-
-            ResponseMessage response = demandeAchatService.updateDemandeAchatStatut(id, newStatus, currentUsername);
-
-            return ResponseEntity.ok(response);
-
-        } catch (ResourceNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ResponseMessage("Demande d'achat non trouvée"));
-        } catch (BadRequestException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseMessage(e.getMessage()));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ResponseMessage("Erreur lors de la mise à jour du statut"));
-        }
-    }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ResponseMessage> deleteDemandeAchat(@PathVariable Integer id) {

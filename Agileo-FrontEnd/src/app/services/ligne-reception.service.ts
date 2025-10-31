@@ -20,6 +20,7 @@ export class LigneReceptionService {
   }
 
   getLignesReceptionByReceptionId(receptionId: number): Observable<ILigneReception[]> {
+    
     return this.http.get<ILigneReception[]>(`${environment.apiUrl}receptions/${receptionId}/lignes`);
   }
 
