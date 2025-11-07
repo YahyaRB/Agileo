@@ -88,6 +88,7 @@ public interface ConsommationService {
 
     List<ConsommationResponseDTO> getConsommationsByAffaireCode(String affaireCode);
     List<ArticleStockDTO> getArticlesDisponiblesForAffaire(String affaireCode);
+    ResponseMessage updateConsommationStatut(Integer consommationId, Integer newStatut, String currentUsername);
 
 
 }

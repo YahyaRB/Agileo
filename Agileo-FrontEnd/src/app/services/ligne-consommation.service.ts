@@ -3,12 +3,13 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError, retry } from 'rxjs/operators';
 import { ILigneConsommation } from '../../interfaces/iligneconsommation';
+import {environment} from "../../environments/environment";
 
 @Injectable({
   providedIn: 'root'
 })
 export class LigneConsommationService {
-  private apiUrl = 'http://localhost:8081/api/consommations';
+  private apiUrl = `${environment.apiUrl}consommations`;
 
   constructor(private http: HttpClient) { }
 

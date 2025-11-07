@@ -14,11 +14,25 @@ public interface SocPrefNoRepository extends JpaRepository<SocPrefNo, Integer> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM SocPrefNo s WHERE s.picod = 3 AND s.ticod = 'F' AND s.dos = '1'")
-    Optional<SocPrefNo> findByPicodAndTicodAndDosForUpdate();
+    Optional<SocPrefNo> findByPicodAndTicodAndDosForReception();
 
     @Modifying
     @Query(value = "UPDATE SOCPREFNO SET PINO = PINO + 1, USERMODH = GETDATE() " +
             "WHERE PICOD = 3 AND TICOD = 'F' AND DOS = '1'",
             nativeQuery = true)
-    int incrementPino();
+    int incrementPinoReception();
+
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM SocPrefNo s WHERE s.picod = 3 AND s.ticod = 'I' AND s.dos = '1'")
+    Optional<SocPrefNo> findByPicodAndTicodAndDosForConsommation();
+
+    @Modifying
+    @Query(value = "UPDATE SOCPREFNO SET PINO = PINO + 1, USERMODH = GETDATE() " +
+            "WHERE PICOD = 3 AND TICOD = 'I' AND DOS = '1'",
+            nativeQuery = true)
+    int incrementPinoConsommation();
+
+
+
 }

@@ -11,6 +11,7 @@ import com.agileo.AGILEO.message.ResponseMessage;
 import com.agileo.AGILEO.repository.primary.DemandeAchatRepository;
 import com.agileo.AGILEO.repository.secondary.PieceJointeRepository;
 import com.agileo.AGILEO.service.DemandeAchatService;
+import com.agileo.AGILEO.service.DivaltoIntegrationDAService;
 import com.agileo.AGILEO.service.FileService;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -38,12 +39,14 @@ public class DemandeAchatController {
     private final FileService fileService; // CORRECTION: FileService au lieu de FileController
     private final PieceJointeRepository pieceJointeRepository;
     private final DemandeAchatRepository demandeAchatRepository;
+    private final DivaltoIntegrationDAService divaltoIntegrationService;
 
-    public DemandeAchatController(DemandeAchatService demandeAchatService, FileService fileService, PieceJointeRepository pieceJointeRepository, DemandeAchatRepository demandeAchatRepository) {
+    public DemandeAchatController(DemandeAchatService demandeAchatService, FileService fileService, PieceJointeRepository pieceJointeRepository, DemandeAchatRepository demandeAchatRepository, DivaltoIntegrationDAService divaltoIntegrationService) {
         this.demandeAchatService = demandeAchatService;
         this.fileService = fileService;
         this.pieceJointeRepository = pieceJointeRepository;
         this.demandeAchatRepository = demandeAchatRepository;
+        this.divaltoIntegrationService = divaltoIntegrationService;
     }
 
     @PostMapping
@@ -310,7 +313,7 @@ public ResponseEntity<? > uploadFiles(
             String currentUsername = authentication != null ? authentication.getName() : "system";
 
             // ✅ CORRECTION : Passer le statut 1 (Envoyé) explicitement
-            ResponseMessage response = demandeAchatService.updateDemandeAchatStatut(id, 1, currentUsername);
+            ResponseMessage response = demandeAchatService.updateDemandeAchatStatut(id, 2, currentUsername);
 
             System.out.println("Statut mis à jour avec succès");
             return ResponseEntity.ok(response);

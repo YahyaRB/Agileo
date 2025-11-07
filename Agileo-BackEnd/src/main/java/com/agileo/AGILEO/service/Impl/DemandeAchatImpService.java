@@ -363,10 +363,10 @@ public class DemandeAchatImpService implements DemandeAchatService {
             }
 
             // Mise à jour
-            demande.setStatut(newStatut);
+            demande.setStatut(2);
             demande.setSysModificationDate(LocalDateTime.now());
 
-            if (newStatut == 1 && (oldStatut == null || oldStatut == 0)) {
+            if (newStatut == 2 && (oldStatut == null || oldStatut == 0)) {
                 demande.setDateDa(LocalDateTime.now());
                 System.out.println("✅ Date d'envoi mise à jour");
             }
@@ -375,7 +375,7 @@ public class DemandeAchatImpService implements DemandeAchatService {
             System.out.println("✅ Demande sauvegardée avec le statut : " + newStatut);
 
             // 🎯 INTÉGRATION DIVALTO
-            if (newStatut == 1) {
+            if (newStatut == 2) {
                 System.out.println("🚀 Statut = 1 détecté - Déclenchement intégration Divalto...");
 
                 try {

@@ -5,6 +5,7 @@ import com.agileo.AGILEO.entity.primary.ArticleReception;
 import com.agileo.AGILEO.entity.primary.LigneReception;
 import com.agileo.AGILEO.entity.primary.Reception;
 import com.agileo.AGILEO.exception.BadRequestException;
+import com.agileo.AGILEO.message.ResponseMessage;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -15,5 +16,6 @@ import java.util.stream.Collectors;
 
 public  interface CommandesService {
     public List<ArticleDisponibleDTO> getArticlesDisponibles(Long commandeId);
+
 
 }

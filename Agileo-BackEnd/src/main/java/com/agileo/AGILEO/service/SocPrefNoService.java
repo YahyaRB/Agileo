@@ -18,7 +18,7 @@ public class SocPrefNoService {
     public BigDecimal getNextPinoForBL() {
         // 1. Récupérer l'entité SocPrefNo avec verrou pessimiste
         SocPrefNo socPrefNo = socPrefNoRepository
-                .findByPicodAndTicodAndDosForUpdate()
+                .findByPicodAndTicodAndDosForReception()
                 .orElseThrow(() -> new RuntimeException(
                         "Aucun numéro de préfixe trouvé pour PICOD=3, TICOD=F, DOS=1"
                 ));
@@ -30,13 +30,37 @@ public class SocPrefNoService {
         BigDecimal nextPino = currentPino.add(BigDecimal.ONE);
 
         // 4. Incrémenter PINO dans la base de données
-        int rowsUpdated = socPrefNoRepository.incrementPino();
+        int rowsUpdated = socPrefNoRepository.incrementPinoReception();
 
         if (rowsUpdated == 0) {
             throw new RuntimeException("Échec de l'incrémentation du PINO");
         }
 
         // 5. Retourner PINO+1 pour l'utiliser dans ENT
+        return nextPino;
+    }
+    @Transactional
+    public BigDecimal getNextPinoForCONS() {
+        // 1. Récupérer l'entité SocPrefNo avec verrou pessimiste
+        SocPrefNo socPrefNo = socPrefNoRepository
+                .findByPicodAndTicodAndDosForConsommation()
+                .orElseThrow(() -> new RuntimeException(
+                        "Aucun numéro de préfixe trouvé pour PICOD=3, TICOD=F, DOS=1"
+                ));
+
+        // 2. Extraire la valeur actuelle de PINO
+        BigDecimal currentPino = socPrefNo.getPino();
+System.out.println("currentPinoxxxxxxxxxxxxxxxx :" +currentPino);
+        // 3. Calculer le prochain PINO (PINO+1)
+        BigDecimal nextPino = currentPino.add(BigDecimal.ONE);
+
+        // 4. Incrémenter PINO dans la base de données
+        int rowsUpdated = socPrefNoRepository.incrementPinoConsommation();
+
+        if (rowsUpdated == 0) {
+            throw new RuntimeException("Échec de l'incrémentation du PINO");
+        }
+
         return nextPino;
     }
 }

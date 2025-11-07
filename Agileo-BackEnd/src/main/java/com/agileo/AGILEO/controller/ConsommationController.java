@@ -415,39 +415,6 @@ public class ConsommationController {
         }
     }
 
-    // ==================== GESTION DES FICHIERS ====================
-
-    /**
-     * Upload de fichiers pour une consommation
-     */
-//    @PostMapping("/upload/{consommationId}")
-//    public ResponseEntity<ResponseMessage> uploadFiles(
-//            @PathVariable Integer consommationId,
-//            @RequestParam("files") List<MultipartFile> files,
-//            @RequestParam(value = "generatedNames", required = false) List<String> generatedNames,
-//            Authentication authentication) {
-//        try {
-//            String currentUsername = authentication != null ? authentication.getName() : "system";
-//
-//            // Validation des fichiers
-//            if (files == null || files.isEmpty()) {
-//                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-//            }
-//
-//            // Vérifier que la consommation existe
-//            consommationService.getConsommationById(consommationId);
-//
-//            // TODO: Implémenter l'upload de fichiers pour les consommations
-//            // Cette partie nécessite un service de gestion des fichiers
-//
-//            return ResponseEntity.ok(new ResponseMessage("Fichiers uploadés avec succès"));
-//        } catch (ResourceNotFoundException e) {
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-//        } catch (Exception e) {
-//            System.err.println("Erreur upload fichiers: " + e.getMessage());
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-//        }
-//    }
 
     /**
      * Supprimer un fichier
@@ -463,24 +430,6 @@ public class ConsommationController {
         }
     }
 
-//    /**
-//     * Récupérer les fichiers d'une consommation
-//     */
-//    @GetMapping("/{consommationId}/files")
-//    public ResponseEntity<List<Object>> getFilesByConsommation(@PathVariable Integer consommationId) {
-//        try {
-//            // Vérifier que la consommation existe
-//            consommationService.getConsommationById(consommationId);
-//
-//            // TODO: Implémenter la récupération des fichiers pour les consommations
-//            return ResponseEntity.ok(Collections.emptyList());
-//        } catch (ResourceNotFoundException e) {
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-//        } catch (Exception e) {
-//            System.err.println("Erreur récupération fichiers: " + e.getMessage());
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-//        }
-//    }
 
     /**
      * Télécharger un fichier

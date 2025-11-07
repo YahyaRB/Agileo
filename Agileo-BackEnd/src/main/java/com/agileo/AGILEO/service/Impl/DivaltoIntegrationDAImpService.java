@@ -211,7 +211,7 @@ public class DivaltoIntegrationDAImpService implements DivaltoIntegrationDAServi
 
         // Champs CE
         daoEnt.setCe1("1");
-        daoEnt.setCe2(" ");
+        daoEnt.setCe2("1");
         daoEnt.setCe3(" ");
         daoEnt.setCe4(" ");
         daoEnt.setCe5(" ");
@@ -233,7 +233,7 @@ public class DivaltoIntegrationDAImpService implements DivaltoIntegrationDAServi
 
         // ✅ CORRECTION : CEJOINT = 2 si pièces jointes, sinon 1
         if (fichiers != null && !fichiers.isEmpty()) {
-            daoEnt.setCejoint(BigDecimal.valueOf(6));
+            daoEnt.setCejoint(BigDecimal.valueOf(2));
             daoEnt.setJoint(jointNumber);
         } else {
             daoEnt.setCejoint(BigDecimal.ONE);
@@ -267,7 +267,7 @@ public class DivaltoIntegrationDAImpService implements DivaltoIntegrationDAServi
         daoEnt.setSalcod(paddedUsername);
         daoEnt.setUsermo("");
 
-        daoEnt.setStatus(BigDecimal.valueOf(6));
+        daoEnt.setStatus(BigDecimal.valueOf(1));
 
         if (demande.getId() != null) {
             daoEnt.setUpIdAgileo(BigDecimal.valueOf(demande.getId()));
@@ -314,7 +314,7 @@ public class DivaltoIntegrationDAImpService implements DivaltoIntegrationDAServi
         // Champs CE
         daoLig.setCe1("2");
         daoLig.setCe2(" ");
-        daoLig.setCe3(" ");
+        daoLig.setCe3("1");
         daoLig.setCe4(" ");
         daoLig.setCe5(" ");
         daoLig.setCe6(" ");
@@ -386,14 +386,9 @@ public class DivaltoIntegrationDAImpService implements DivaltoIntegrationDAServi
         }
         mJoint.setFicc(fileName);
 
-        String chemin = fichier.getFtpPath();
-        if (chemin == null || chemin.trim().isEmpty()) {
-            chemin = fichier.getTempPath();
-        }
-        if (chemin == null || chemin.trim().isEmpty()) {
-            chemin = fileName;
-        }
-        mJoint.setChemin(chemin);
+
+
+        mJoint.setChemin("//cetus/divalto/rb217/fichiers/ficjoints_op");
 
         mJoint.setLib80("");
 

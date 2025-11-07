@@ -545,9 +545,10 @@ export class ListDemandeAchatComponent implements OnInit,OnDestroy {
   sendDemandeConfirmed(): void {
     if (!this.demandeIdToSend) return;
 
-    this.demandeAchatService.updateDemandeStatut(this.demandeIdToSend, 1).subscribe({
+    // ✅ CORRECTION : Utiliser updateDemandeAchatStatut au lieu de updateDemandeStatut
+    this.demandeAchatService.updateDemandeAchatStatut(this.demandeIdToSend).subscribe({
       next: () => {
-        this.notifyService.showSuccess('Demande envoyée avec succès', 'Succès');
+        this.notifyService.showSuccess('Demande envoyée avec succès et intégrée dans Divalto', 'Succès');
         this.loadDemandesAchat();
         this.demandeIdToSend = null;
         (window as any).$('#confirmSendModal').modal('hide');

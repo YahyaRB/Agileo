@@ -2,8 +2,11 @@ package com.agileo.AGILEO.service.Impl;
 
 import com.agileo.AGILEO.Dtos.request.*;
 import com.agileo.AGILEO.Dtos.response.*;
+import com.agileo.AGILEO.entity.divalto.MOUV;
+import com.agileo.AGILEO.entity.divalto.Mvtl;
 import com.agileo.AGILEO.entity.primary.KdnFile;
-import com.agileo.AGILEO.entity.primary.KdnFileGroup;
+import com.agileo.AGILEO.repository.divalto.MouvRepository;
+import com.agileo.AGILEO.repository.divalto.MvtlRepository;
 import com.agileo.AGILEO.repository.primary.KdnFileRepository;
 import com.agileo.AGILEO.repository.primary.KdnFileGroupRepository;
 import com.agileo.AGILEO.entity.primary.*;
@@ -19,7 +22,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -42,6 +44,8 @@ public class ReceptionServiceImpl implements ReceptionService {
     private final VentilationArticleRepository ventilationArticleRepository;
     private final KdnFileGroupRepository kdnFileGroupRepository;
     private final DivaltoIntegrationReceptionService divaltoIntegrationReceptionService;
+    private final MvtlRepository mvtlRepository;
+    private final MouvRepository mouvRepository;
 
     public ReceptionServiceImpl(
             ReceptionRepository receptionRepository,
@@ -53,7 +57,10 @@ public class ReceptionServiceImpl implements ReceptionService {
             CommandeRepository commandeRepository,
             VentilationArticleRepository ventilationArticleRepository,
             KdnFileRepository kdnFileRepository,
-            KdnFileGroupRepository kdnFileGroupRepository, DivaltoIntegrationReceptionService divaltoIntegrationReceptionService) {
+            KdnFileGroupRepository kdnFileGroupRepository,
+            DivaltoIntegrationReceptionService divaltoIntegrationReceptionService,
+            MvtlRepository mvtlRepository,
+            MouvRepository mouvRepository) {
 
         this.receptionRepository = receptionRepository;
         this.ligneReceptionRepository = ligneReceptionRepository;
@@ -64,9 +71,12 @@ public class ReceptionServiceImpl implements ReceptionService {
         this.commandeRepository = commandeRepository;
         this.ventilationArticleRepository = ventilationArticleRepository;
         this.kdnFileRepository = kdnFileRepository;
-        this.kdnFileGroupRepository = kdnFileGroupRepository; // CORRECTION: Cette ligne était manquante !
+        this.kdnFileGroupRepository = kdnFileGroupRepository;
         this.divaltoIntegrationReceptionService = divaltoIntegrationReceptionService;
+        this.mvtlRepository = mvtlRepository;
+        this.mouvRepository = mouvRepository;
     }
+
     // ==================== CRÉATION ET GESTION DES RÉCEPTIONS ====================
 
     @Override
@@ -74,14 +84,13 @@ public class ReceptionServiceImpl implements ReceptionService {
         try {
             // Validation de l'affaire
             Affaire affaire = null;
-            // Essayer d'abord de récupérer par ID
             try {
                 Integer affaireId = Integer.parseInt(String.valueOf(receptionDto.getAffaireId()));
                 affaire = affaireRepository.findById(String.valueOf(affaireId)).orElse(null);
             } catch (NumberFormatException e) {
                 System.out.println("AffaireId n'est pas un nombre, recherche par code: " + receptionDto.getAffaireId());
             }
-            // Si pas trouvé par ID, chercher par code d'affaire
+
             if (affaire == null) {
                 String affaireCode = String.valueOf(receptionDto.getAffaireId());
                 Optional<Affaire> affaireOptional = affaireRepository.findByAffaire(affaireCode);
@@ -92,14 +101,15 @@ public class ReceptionServiceImpl implements ReceptionService {
                     throw new ResourceNotFoundException("Affaire introuvable: " + receptionDto.getAffaireId());
                 }
             }
+
             // Récupération de l'utilisateur courant
             UserResponseDTO currentUser;
             try {
                 currentUser = userService.findUserByLogin(currentUsername);
-
             } catch (Exception e) {
                 throw new BadRequestException("Utilisateur introuvable: " + currentUsername);
             }
+
             // Gestion sécurisée de l'accessorId
             Integer accessorId = null;
             if (currentUser.getIdAgelio() != null && !currentUser.getIdAgelio().trim().isEmpty()) {
@@ -111,6 +121,7 @@ public class ReceptionServiceImpl implements ReceptionService {
             }
 
             Reception reception = new Reception();
+
             // Gestion du commandeCode
             Integer commandeValue = null;
             if (receptionDto.getCommandeCode() != null) {
@@ -127,6 +138,7 @@ public class ReceptionServiceImpl implements ReceptionService {
                     throw new BadRequestException("Le code de commande doit être numérique: " + receptionDto.getCommandeCode());
                 }
             }
+
             // Si commandeCode n'est pas fourni, utiliser le code d'affaire
             if (commandeValue == null) {
                 try {
@@ -135,15 +147,15 @@ public class ReceptionServiceImpl implements ReceptionService {
                     throw new BadRequestException("Le code d'affaire doit être numérique: " + affaire.getAffaire());
                 }
             }
+
             reception.setCommande(commandeValue);
             reception.setPjBc(null);
-//            reception.setPinotiers(String.valueOf(receptionDto.getIdAgelio()));
             reception.setPinotiers(receptionDto.getIdAgelio());
             reception.setSysCreationDate(receptionDto.getDateReception());
             reception.setSysModificationDate(receptionDto.getDateBl());
             reception.setSysCreatorId(accessorId);
             reception.setSysUserId(accessorId);
-            reception.setSysState(1);
+
             // Gestion du statut
             int statutValue = 0;
             if (receptionDto.getStatut() != null && receptionDto.getStatut().equals("Envoyé")) {
@@ -153,6 +165,7 @@ public class ReceptionServiceImpl implements ReceptionService {
             reception.setSysState(statutValue);
             Reception savedReception = receptionRepository.save(reception);
             return mapToResponseDTO(savedReception);
+
         } catch (BadRequestException | ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
@@ -167,7 +180,7 @@ public class ReceptionServiceImpl implements ReceptionService {
         List<Reception> receptions = receptionRepository.findAll();
         return mapToResponseDTOs(receptions);
     }
-    //Liste des receptions avec pagination
+
     @Override
     public PagedResponse<ReceptionResponseDTO> getAllReceptionsPaginated(
             int page, int size, String sortBy, String sortDirection, String search) {
@@ -176,7 +189,6 @@ public class ReceptionServiceImpl implements ReceptionService {
         if (size <= 0 || size > 20) size = 20;
         if (sortBy == null || sortBy.isEmpty()) sortBy = "numero";
 
-        // ✅ AJOUT : Mapper les noms de colonnes frontend vers les propriétés de l'entité
         sortBy = mapSortFieldToEntityProperty(sortBy);
 
         Sort.Direction direction = sortDirection != null && sortDirection.equalsIgnoreCase("desc")
@@ -208,7 +220,6 @@ public class ReceptionServiceImpl implements ReceptionService {
         return response;
     }
 
-
     @Override
     public ReceptionResponseDTO getReceptionById(Integer id) {
         Reception reception = getReceptionEntityById(id);
@@ -235,6 +246,7 @@ public class ReceptionServiceImpl implements ReceptionService {
             return Collections.emptyList();
         }
     }
+
     @Override
     public PagedResponse<ReceptionResponseDTO> getCurrentUserReceptionsPaginated(
             int page, int size, String sortBy, String sortDirection, String currentUsername, String search) {
@@ -252,7 +264,6 @@ public class ReceptionServiceImpl implements ReceptionService {
             if (size <= 0 || size > 20) size = 20;
             if (sortBy == null || sortBy.isEmpty()) sortBy = "numero";
 
-            // ✅ AJOUT : Mapper les noms de colonnes
             sortBy = mapSortFieldToEntityProperty(sortBy);
 
             Sort.Direction direction = (sortDirection != null && sortDirection.equalsIgnoreCase("desc"))
@@ -312,7 +323,6 @@ public class ReceptionServiceImpl implements ReceptionService {
             }
         }
 
-        
         reception.setPinotiers(receptionDto.getReferenceBl());
         reception.setSysModificationDate(receptionDto.getDateBl());
         reception.setSysCreationDate(receptionDto.getDateReception());
@@ -332,18 +342,17 @@ public class ReceptionServiceImpl implements ReceptionService {
             throw new BadRequestException("Une réception envoyée ne peut pas être supprimée");
         }
 
-        // Supprimer d'abord les lignes
         Integer commandeId = reception.getCommande();
         if (commandeId != null) {
             ligneReceptionRepository.deleteByCommande(commandeId);
         }
 
-        // Supprimer la réception
         receptionRepository.delete(reception);
         return new ResponseMessage("Réception supprimée avec succès");
     }
 
-    // ==================== GESTION DES ARTICLES DISPONIBLES (DEPUIS ArticleReception) ====================
+    // ==================== GESTION DES ARTICLES DISPONIBLES ====================
+
     @Override
     public List<ArticleDisponibleDTO> getArticlesDisponibles(Integer receptionId) {
         try {
@@ -353,15 +362,11 @@ public class ReceptionServiceImpl implements ReceptionService {
                 return Collections.emptyList();
             }
 
-            // Récupérer les articles depuis ArticleReception (Livraison_ERP)
             List<ArticleReception> articlesReception = articleReceptionRepository
                     .findArticleReceptionsByCommande(commandeNumber.longValue());
 
-            // ✅ CORRECTION: Récupérer TOUTES les lignes de la commande (toutes réceptions confondues)
-            // pour calculer la quantité totale déjà reçue
             List<LigneReception> toutesLesLignes = ligneReceptionRepository.findByCommande(commandeNumber);
 
-            // ✅ Calculer les quantités RÉELLEMENT reçues depuis LigneReception
             Map<String, BigDecimal> quantitesDejaRecues = toutesLesLignes.stream()
                     .filter(ligne -> ligne.getArticle() != null && ligne.getQte() != null)
                     .collect(Collectors.groupingBy(
@@ -374,28 +379,24 @@ public class ReceptionServiceImpl implements ReceptionService {
             for (ArticleReception articleReception : articlesReception) {
                 ArticleDisponibleDTO dto = new ArticleDisponibleDTO();
 
-                // Informations de base
                 dto.setReference(articleReception.getArticleId());
                 dto.setDesignation(articleReception.getDesignation());
                 dto.setUnite(articleReception.getUnite());
 
-                // Quantités
                 BigDecimal qteCommandee = articleReception.getQteCommandee() != null ?
                         articleReception.getQteCommandee() : BigDecimal.ZERO;
                 BigDecimal qteRest = articleReception.getQteRest() != null ?
                         articleReception.getQteRest() : BigDecimal.ZERO;
 
-                // ✅ CORRECTION PRINCIPALE: Utiliser la valeur CALCULÉE depuis LigneReception
                 BigDecimal qteDejaRecue = quantitesDejaRecues.getOrDefault(
                         articleReception.getArticleId(),
                         BigDecimal.ZERO
                 );
 
                 dto.setQuantiteCommandee(qteCommandee);
-                dto.setQuantiteDejaRecue(qteDejaRecue);  // ✅ Maintenant utilise la bonne valeur !
+                dto.setQuantiteDejaRecue(qteDejaRecue);
                 dto.setQuantiteDisponible(qteRest);
 
-                // ✅ FILTRE: N'afficher QUE les articles avec qteRest > 0
                 if (qteRest.compareTo(BigDecimal.ZERO) > 0) {
                     articlesDisponibles.add(dto);
                 }
@@ -409,20 +410,18 @@ public class ReceptionServiceImpl implements ReceptionService {
             throw new BadRequestException("Erreur lors de la récupération des articles: " + e.getMessage());
         }
     }
+
     // ==================== GESTION DES LIGNES DE RÉCEPTION ====================
 
     @Override
-
     public ResponseMessage addLignesReception(Integer receptionId, List<LigneReceptionRequestDTO> lignesDto,
                                               String currentUsername) {
-        VentilationArticle ventilation;
         try {
             Reception reception = getReceptionEntityById(receptionId);
             if (reception.getSysState() != null && reception.getSysState() == 1) {
                 throw new BadRequestException("Impossible d'ajouter des lignes à une réception envoyée");
             }
 
-            // Récupérer l'utilisateur
             Integer accessorId = null;
             try {
                 UserResponseDTO currentUser = userService.findUserByLogin(currentUsername);
@@ -433,12 +432,10 @@ public class ReceptionServiceImpl implements ReceptionService {
                 System.out.println("Impossible de récupérer l'ID utilisateur: " + e.getMessage());
             }
 
-            // Vérifier que le numéro de commande n'est pas null
             if (reception.getCommande() == null) {
                 throw new BadRequestException("Numéro de commande manquant pour la réception " + receptionId);
             }
 
-            // Récupérer les articles depuis ArticleReception
             List<ArticleReception> articlesReception;
             try {
                 articlesReception = articleReceptionRepository
@@ -455,13 +452,11 @@ public class ReceptionServiceImpl implements ReceptionService {
             Map<String, ArticleReception> articlesMap = articlesReception.stream()
                     .collect(Collectors.toMap(ArticleReception::getArticleId, a -> a));
 
-            // Validation des données d'entrée
             if (lignesDto == null || lignesDto.isEmpty()) {
                 throw new BadRequestException("Aucune ligne à ajouter");
             }
 
             for (LigneReceptionRequestDTO ligneDto : lignesDto) {
-                // Validation complète des données
                 if (ligneDto.getReferenceArticle() == null || ligneDto.getReferenceArticle().trim().isEmpty()) {
                     throw new BadRequestException("Référence article manquante");
                 }
@@ -469,14 +464,12 @@ public class ReceptionServiceImpl implements ReceptionService {
                     throw new BadRequestException("Quantité invalide pour l'article " + ligneDto.getReferenceArticle());
                 }
 
-                // Vérifier que l'article existe dans le bon de commande
                 ArticleReception articleReception = articlesMap.get(ligneDto.getReferenceArticle());
                 if (articleReception == null) {
                     throw new BadRequestException("Article " + ligneDto.getReferenceArticle() +
                             " non trouvé dans le bon de commande " + reception.getCommande());
                 }
 
-                // Validation de la quantité
                 ValidationQuantiteDTO validation;
                 try {
                     validation = validerQuantiteArticle(
@@ -489,7 +482,6 @@ public class ReceptionServiceImpl implements ReceptionService {
                     throw new BadRequestException("Article " + ligneDto.getReferenceArticle() + ": " + validation.getMessage());
                 }
 
-                // Vérifier si l'article existe déjà dans cette réception spécifique
                 try {
                     List<LigneReception> lignesExistantes = ligneReceptionRepository.findByEntId(reception.getNumero());
                     boolean existe = lignesExistantes.stream()
@@ -504,22 +496,37 @@ public class ReceptionServiceImpl implements ReceptionService {
                     System.err.println("Erreur lors de la vérification d'existence: " + e.getMessage());
                 }
 
-                // Création de la ligne
                 try {
                     LigneReception ligne = new LigneReception();
-                    ventilation = new VentilationArticle();
-                    Commande commande = commandeRepository.findByCommande(Long.valueOf(reception.getCommande()));
-                    String depot = extraireDepotDuCodeAffaire(commande.getAffaireCode());
-                    ventilation=ventilationArticleRepository.findByReferenceAndDepot(ligneDto.getReferenceArticle(),depot);
+
+                    // ✅ CORRECTION LIGNE 525 - Récupération MOUV et MVTL
+                    Optional<MOUV> mouvOpt = mouvRepository.findLigneCommandeByPinoAndRef(
+                            BigDecimal.valueOf(reception.getCommande()),
+                            ligneDto.getReferenceArticle().trim()
+                    );
+
+                    if (!mouvOpt.isPresent()) {
+                        throw new BadRequestException("Ligne de commande non trouvée pour l'article: " + ligneDto.getReferenceArticle());
+                    }
+
+                    MOUV mouv = mouvOpt.get();
+
+                    // ✅ CORRECTION : Paramètres corrects pour findMouvementByEnrno
+                    Optional<Mvtl> mvtl = mvtlRepository.findMouvementByEnrno(
+                            mouv.getRef(),
+                            mouv.getCdno()
+                    );
+
+                    if (mvtl == null) {
+                        throw new BadRequestException("Mouvement de stock non trouvé pour l'article: " + ligneDto.getReferenceArticle());
+                    }
+
                     ligne.setEntId(reception.getNumero());
                     ligne.setCommande(reception.getCommande());
                     ligne.setArticle(ligneDto.getReferenceArticle());
-                    // Information ENRNO
-                    ligne.setEnrno(ventilation.getEnrno());
-                    // Information VTLNO
-                    ligne.setVtlno(ventilation.getVtlno());
+                    ligne.setEnrno(mvtl.get().getEnrno().intValue());
+                    ligne.setVtlno(mvtl.get().getVtlno().intValue());
 
-                    // Désignation
                     String designation = articleReception.getDesignation();
                     if (ligneDto.getDesignationArticle() != null && !ligneDto.getDesignationArticle().trim().isEmpty()) {
                         designation = ligneDto.getDesignationArticle();
@@ -534,7 +541,6 @@ public class ReceptionServiceImpl implements ReceptionService {
                     ligne.setQteLivre(qteLivree.add(ligneDto.getQuantite()));
                     ligne.setReste(qteRest.subtract(ligneDto.getQuantite()));
 
-                    // Autres infos
                     String unite = articleReception.getUnite();
                     if (ligneDto.getUnite() != null && !ligneDto.getUnite().trim().isEmpty()) {
                         unite = ligneDto.getUnite();
@@ -543,7 +549,6 @@ public class ReceptionServiceImpl implements ReceptionService {
                     ligne.setAffaire(articleReception.getAffaireCode());
                     ligne.setTiers(null);
 
-                    // Métadonnées
                     ligne.setIntegre(2);
                     ligne.setSysCreationDate(LocalDateTime.now());
                     ligne.setSysModificationDate(LocalDateTime.now());
@@ -552,10 +557,11 @@ public class ReceptionServiceImpl implements ReceptionService {
                     ligne.setPldt(reception.getSysModificationDate());
                     ligne.setSysState(1);
 
-                    // Sauvegarde
                     ligneReceptionRepository.save(ligne);
                     System.out.println("Ligne ajoutée avec succès pour l'article: " + ligneDto.getReferenceArticle());
 
+                } catch (BadRequestException e) {
+                    throw e;
                 } catch (Exception e) {
                     System.err.println("Erreur lors de la création de la ligne pour l'article " +
                             ligneDto.getReferenceArticle() + ": " + e.getMessage());
@@ -582,15 +588,15 @@ public class ReceptionServiceImpl implements ReceptionService {
                                                         BigDecimal quantiteDemandee, Integer ligneReceptionId) {
         try {
             Reception reception = getReceptionEntityById(receptionId);
-            // Vérifier le statut de la réception
+
             if (reception.getSysState() != null && reception.getSysState() == 1) {
                 return new ValidationQuantiteDTO(false, "Réception déjà envoyée", BigDecimal.ZERO, BigDecimal.ZERO);
             }
-            // Vérification du numéro de commande
+
             if (reception.getCommande() == null) {
                 return new ValidationQuantiteDTO(false, "Numéro de commande manquant", BigDecimal.ZERO, quantiteDemandee);
             }
-            // Récupérer l'article depuis ArticleReception
+
             List<ArticleReception> articlesReception;
             try {
                 articlesReception = articleReceptionRepository
@@ -600,18 +606,20 @@ public class ReceptionServiceImpl implements ReceptionService {
                 return new ValidationQuantiteDTO(false, "Erreur lors de la vérification de l'article",
                         BigDecimal.ZERO, quantiteDemandee);
             }
+
             ArticleReception articleReception = articlesReception.stream()
                     .filter(a -> a.getArticleId() != null && a.getArticleId().equals(referenceArticle))
                     .findFirst()
                     .orElse(null);
+
             if (articleReception == null) {
                 return new ValidationQuantiteDTO(false, "Article non trouvé dans le bon de commande",
                         BigDecimal.ZERO, quantiteDemandee);
             }
-            // Calculer les quantités
+
             BigDecimal qteCommandee = articleReception.getQteCommandee() != null ?
                     articleReception.getQteCommandee() : BigDecimal.ZERO;
-            // Gestion sécurisée de la récupération des lignes existantes
+
             BigDecimal qteDejaRecue = BigDecimal.ZERO;
             try {
                 List<LigneReception> lignesExistantes = ligneReceptionRepository.findByEntId(reception.getNumero());
@@ -622,44 +630,49 @@ public class ReceptionServiceImpl implements ReceptionService {
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
             } catch (Exception e) {
                 System.err.println("Erreur lors du calcul des quantités déjà reçues: " + e.getMessage());
-                // Continuer avec qteDejaRecue = 0
             }
+
             BigDecimal qteDisponible = qteCommandee.subtract(qteDejaRecue);
             if (qteDisponible.compareTo(BigDecimal.ZERO) < 0) {
                 qteDisponible = BigDecimal.ZERO;
             }
-            // Validation
+
             if (quantiteDemandee == null || quantiteDemandee.compareTo(BigDecimal.ZERO) <= 0) {
                 return new ValidationQuantiteDTO(false, "La quantité doit être positive",
                         qteDisponible, quantiteDemandee);
             }
+
             if (quantiteDemandee.compareTo(qteDisponible) > 0) {
                 return new ValidationQuantiteDTO(false,
                         String.format("Quantité demandée (%s) dépasse la quantité disponible (%s)",
                                 quantiteDemandee, qteDisponible),
                         qteDisponible, quantiteDemandee);
             }
+
             return new ValidationQuantiteDTO(true, "Quantité valide", qteDisponible, quantiteDemandee);
+
         } catch (Exception e) {
             System.err.println("Erreur lors de la validation de quantité: " + e.getMessage());
             return new ValidationQuantiteDTO(false, "Erreur lors de la validation: " + e.getMessage(),
                     BigDecimal.ZERO, quantiteDemandee);
         }
     }
+
     @Override
     public List<LigneReceptionResponseDTO> getLignesReceptionByReceptionId(Integer receptionId) {
         try {
             Reception reception = getReceptionEntityById(receptionId);
             List<LigneReception> lignes = ligneReceptionRepository.findByEntId(reception.getNumero());
-            // Si aucune ligne trouvée avec Ent_ID, essayer avec Commande (pour compatibilité)
+
             if (lignes.isEmpty() && reception.getCommande() != null) {
                 lignes = ligneReceptionRepository.findByCommande(reception.getCommande());
-                // Filtrer uniquement les lignes de cette réception spécifique
                 lignes = lignes.stream()
                         .filter(l -> l.getEntId() != null && l.getEntId().equals(reception.getNumero()))
                         .collect(Collectors.toList());
             }
+
             return lignes.stream().map(this::mapLigneToResponseDTO).collect(Collectors.toList());
+
         } catch (Exception e) {
             System.err.println("Erreur lors de la récupération des lignes de réception: " + e.getMessage());
             e.printStackTrace();
@@ -667,137 +680,86 @@ public class ReceptionServiceImpl implements ReceptionService {
         }
     }
 
-    //@Override
-//    public ResponseMessage updateLigneReception(Integer ligneId, LigneReceptionRequestDTO ligneDto,
-//                                                String currentUsername) {
-//        LigneReception ligne = ligneReceptionRepository.findById(ligneId)
-//                .orElseThrow(() -> new ResourceNotFoundException("Ligne de réception non trouvée"));
-//        // Vérifier le statut de la réception via Ent_ID
-//        Reception reception = null;
-//        if (ligne.getEntId() != null) {
-//            reception = receptionRepository.findById(ligne.getEntId()).orElse(null);
-//        }
-//        // Si pas trouvé par Ent_ID, chercher par Commande
-//        if (reception == null && ligne.getCommande() != null) {
-//            List<Reception> receptions = receptionRepository.findByCommande(ligne.getCommande());
-//            if (!receptions.isEmpty()) {
-//                reception = receptions.get(0);
-//            }
-//        }
-//        if (reception == null) {
-//            throw new ResourceNotFoundException("Réception non trouvée pour cette ligne");
-//        }
-//        if (reception.getSysState() != null && reception.getSysState() == 1) {
-//            throw new BadRequestException("Impossible de modifier une ligne d'une réception envoyée");
-//        }
-//        // Valider la nouvelle quantité
-//        ValidationQuantiteDTO validation = validerQuantiteArticle(
-//                reception.getNumero(), ligne.getArticle(), ligneDto.getQuantite(), ligneId);
-//        if (!validation.isValide()) {
-//            throw new BadRequestException(validation.getMessage());
-//        }
-//        // Mettre à jour la ligne
-//        ligne.setQte(ligneDto.getQuantite());
-//        ligne.setQteLivre(ligneDto.getQuantite());
-//        if (ligneDto.getDesignationArticle() != null) {
-//            ligne.setDeseignation(ligneDto.getDesignationArticle());
-//        }
-//        if (ligneDto.getUnite() != null) {
-//            ligne.setUnite(ligneDto.getUnite());
-//        }
-//        ligne.setSysModificationDate(LocalDateTime.now());
-//        ligneReceptionRepository.save(ligne);
-//        return new ResponseMessage("Ligne mise à jour avec succès");
-//    }
-    // Méthode pour récupérer les fichiers d'une réception
-// Remplacer cette méthode dans ReceptionServiceImpl.java :
+    public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) {
+        try {
+            System.out.println("=== RÉCUPÉRATION FICHIERS RÉCEPTION ===");
+            System.out.println("Réception ID: " + receptionId);
 
-// Méthode pour récupérer les fichiers d'une réception
-public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) {
-    try {
-        System.out.println("=== RÉCUPÉRATION FICHIERS RÉCEPTION ===");
-        System.out.println("Réception ID: " + receptionId);
+            Reception reception = receptionRepository.findById(receptionId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Réception non trouvée: " + receptionId));
 
-        Reception reception = receptionRepository.findById(receptionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Réception non trouvée: " + receptionId));
+            System.out.println("Réception trouvée, pj_bc: " + reception.getPjBc());
 
-        System.out.println("Réception trouvée, pj_bc: " + reception.getPjBc());
-
-        if (reception.getPjBc() == null) {
-            System.out.println("Aucun groupe de fichiers associé à cette réception");
-            return new ArrayList<>();
-        }
-
-        // Récupérer les fichiers du groupe depuis KDN_FILE
-        List<KdnFile> files = kdnFileRepository.findByGroupIdOrderByUploadDateDesc(reception.getPjBc());
-        System.out.println("Fichiers trouvés: " + files.size());
-
-        return files.stream().map(file -> {
-            System.out.println("Traitement fichier: " + file.getFullFileName() + " (ID: " + file.getFileId() + ")");
-
-            DemandeAchatFileResponseDTO dto = new DemandeAchatFileResponseDTO();
-            dto.setFileId(file.getFileId());
-            dto.setName(file.getName() != null ? file.getName() : "");
-            dto.setExtension(file.getExtension() != null ? file.getExtension() : "");
-            dto.setFullFileName(file.getFullFileName());
-            dto.setSize(file.getSize() != null ? file.getSize() : 0);
-            dto.setSizeFormatted(file.getSizeFormatted());
-            dto.setUploadDate(file.getSysCreationDate());
-            dto.setNbOpen(file.getNbOpen() != null ? file.getNbOpen() : 0);
-            dto.setDownloadUrl("/api/receptions/files/" + file.getFileId() + "/download");
-            dto.setCanDelete(file.getSysState() != null && file.getSysState() == 1);
-            dto.setCanDownload(file.getSysState() != null && file.getSysState() == 1);
-            dto.setCategory("Pièce jointe réception");
-            dto.setDocumentType("Fichier réception");
-            dto.setAlt(file.getAlt() != null ? file.getAlt() : "");
-
-            // Informations utilisateur si disponibles
-            if (file.getSysCreatorId() != null) {
-                try {
-                    Optional<KdnsAccessor> creator = kdnsAccessorRepository.findById(file.getSysCreatorId());
-                    if (creator.isPresent()) {
-                        dto.setUploadedByNom(formatUserName(creator.get()));
-                        dto.setUploadedBy(creator.get().getLogin());
-                    } else {
-                        dto.setUploadedByNom("Utilisateur inconnu");
-                        dto.setUploadedBy("unknown");
-                    }
-                } catch (Exception e) {
-                    System.err.println("Erreur lors de la récupération de l'utilisateur créateur: " + e.getMessage());
-                    dto.setUploadedByNom("Erreur utilisateur");
-                    dto.setUploadedBy("error");
-                }
-            } else {
-                dto.setUploadedByNom("Système");
-                dto.setUploadedBy("system");
+            if (reception.getPjBc() == null) {
+                System.out.println("Aucun groupe de fichiers associé à cette réception");
+                return new ArrayList<>();
             }
 
-            return dto;
-        }).collect(Collectors.toList());
+            List<KdnFile> files = kdnFileRepository.findByGroupIdOrderByUploadDateDesc(reception.getPjBc());
+            System.out.println("Fichiers trouvés: " + files.size());
 
-    } catch (ResourceNotFoundException e) {
-        System.err.println("Réception non trouvée: " + e.getMessage());
-        throw e;
-    } catch (Exception e) {
-        System.err.println("Erreur lors de la récupération des fichiers de réception: " + e.getMessage());
-        e.printStackTrace();
-        return new ArrayList<>();
+            return files.stream().map(file -> {
+                System.out.println("Traitement fichier: " + file.getFullFileName() + " (ID: " + file.getFileId() + ")");
+
+                DemandeAchatFileResponseDTO dto = new DemandeAchatFileResponseDTO();
+                dto.setFileId(file.getFileId());
+                dto.setName(file.getName() != null ? file.getName() : "");
+                dto.setExtension(file.getExtension() != null ? file.getExtension() : "");
+                dto.setFullFileName(file.getFullFileName());
+                dto.setSize(file.getSize() != null ? file.getSize() : 0);
+                dto.setSizeFormatted(file.getSizeFormatted());
+                dto.setUploadDate(file.getSysCreationDate());
+                dto.setNbOpen(file.getNbOpen() != null ? file.getNbOpen() : 0);
+                dto.setDownloadUrl("/api/receptions/files/" + file.getFileId() + "/download");
+                dto.setCanDelete(file.getSysState() != null && file.getSysState() == 1);
+                dto.setCanDownload(file.getSysState() != null && file.getSysState() == 1);
+                dto.setCategory("Pièce jointe réception");
+                dto.setDocumentType("Fichier réception");
+                dto.setAlt(file.getAlt() != null ? file.getAlt() : "");
+
+                if (file.getSysCreatorId() != null) {
+                    try {
+                        Optional<KdnsAccessor> creator = kdnsAccessorRepository.findById(file.getSysCreatorId());
+                        if (creator.isPresent()) {
+                            dto.setUploadedByNom(formatUserName(creator.get()));
+                            dto.setUploadedBy(creator.get().getLogin());
+                        } else {
+                            dto.setUploadedByNom("Utilisateur inconnu");
+                            dto.setUploadedBy("unknown");
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Erreur lors de la récupération de l'utilisateur créateur: " + e.getMessage());
+                        dto.setUploadedByNom("Erreur utilisateur");
+                        dto.setUploadedBy("error");
+                    }
+                } else {
+                    dto.setUploadedByNom("Système");
+                    dto.setUploadedBy("system");
+                }
+
+                return dto;
+            }).collect(Collectors.toList());
+
+        } catch (ResourceNotFoundException e) {
+            System.err.println("Réception non trouvée: " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la récupération des fichiers de réception: " + e.getMessage());
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
     }
-}
-
 
     public ResponseMessage updateLigneReception(Integer ligneId, LigneReceptionRequestDTO ligneDto,
                                                 String currentUsername) {
         LigneReception ligne = ligneReceptionRepository.findById(ligneId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ligne de réception non trouvée"));
 
-        // Vérifier le statut de la réception via Ent_ID
         Reception reception = null;
         if (ligne.getEntId() != null) {
             reception = receptionRepository.findById(ligne.getEntId()).orElse(null);
         }
 
-        // Si pas trouvé par Ent_ID, chercher par Commande
         if (reception == null && ligne.getCommande() != null) {
             List<Reception> receptions = receptionRepository.findByCommande(ligne.getCommande());
             if (!receptions.isEmpty()) {
@@ -809,34 +771,25 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
             throw new ResourceNotFoundException("Réception non trouvée pour cette ligne");
         }
 
-        // Vérifier si réception déjà envoyée
         if (reception.getSysState() != null && reception.getSysState() == 1) {
             throw new BadRequestException("Impossible de modifier une ligne d'une réception envoyée");
         }
 
-        // Ancienne et nouvelle quantité
         BigDecimal ancienneQte = ligne.getQte() != null ? ligne.getQte() : BigDecimal.ZERO;
         BigDecimal nouvelleQte = ligneDto.getQuantite() != null ? ligneDto.getQuantite() : BigDecimal.ZERO;
-
-        // Différence
         BigDecimal difference = nouvelleQte.subtract(ancienneQte);
 
-        // Mettre à jour qte
         ligne.setQte(nouvelleQte);
 
-        // Mettre à jour qte_livre et reste selon la différence
         if (difference.compareTo(BigDecimal.ZERO) > 0) {
-            // Nouvelle quantite > ancienne → on augmente qte_livre et on diminue reste
             ligne.setQteLivre(ligne.getQteLivre().add(difference));
             ligne.setReste(ligne.getReste().subtract(difference));
         } else if (difference.compareTo(BigDecimal.ZERO) < 0) {
-            // Nouvelle quantite < ancienne → on diminue qte_livre et on augmente reste
             BigDecimal absDiff = difference.abs();
             ligne.setQteLivre(ligne.getQteLivre().subtract(absDiff));
             ligne.setReste(ligne.getReste().add(absDiff));
         }
 
-        // Mettre à jour autres infos
         if (ligneDto.getDesignationArticle() != null) {
             ligne.setDeseignation(ligneDto.getDesignationArticle());
         }
@@ -855,13 +808,11 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
         LigneReception ligne = ligneReceptionRepository.findById(ligneId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ligne de réception non trouvée"));
 
-        // Vérifier le statut de la réception via Ent_ID
         Reception reception = null;
         if (ligne.getEntId() != null) {
             reception = receptionRepository.findById(ligne.getEntId()).orElse(null);
         }
 
-        // Si pas trouvé par Ent_ID, chercher par Commande
         if (reception == null && ligne.getCommande() != null) {
             List<Reception> receptions = receptionRepository.findByCommande(ligne.getCommande());
             if (!receptions.isEmpty()) {
@@ -878,7 +829,6 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
         }
 
         ligneReceptionRepository.delete(ligne);
-
         return new ResponseMessage("Ligne supprimée avec succès");
     }
 
@@ -897,28 +847,29 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
         if (receptions.isEmpty()) {
             return Collections.emptyList();
         }
-        // CORRECTION: Traiter les réceptions par lots pour éviter les requêtes trop grandes
-        final int BATCH_SIZE = 500; // Limite pour éviter les erreurs SQL
-        // Diviser les réceptions en lots
+
+        final int BATCH_SIZE = 500;
         List<List<Reception>> batches = new ArrayList<>();
         for (int i = 0; i < receptions.size(); i += BATCH_SIZE) {
             batches.add(receptions.subList(i, Math.min(i + BATCH_SIZE, receptions.size())));
         }
-        // Traiter chaque lot et combiner les résultats
+
         List<ReceptionResponseDTO> allResults = new ArrayList<>();
+
         for (List<Reception> batch : batches) {
-            // Pré-charger les données pour ce lot
             Set<Long> commandeIds = batch.stream()
                     .map(r -> Long.valueOf(r.getCommande()))
                     .filter(Objects::nonNull)
                     .collect(Collectors.toSet());
+
             Set<Integer> userIds = batch.stream()
                     .flatMap(r -> Stream.of(r.getSysCreatorId(), r.getSysUserId()))
                     .filter(Objects::nonNull)
                     .collect(Collectors.toSet());
+
             Map<Long, Commande> commandes = new HashMap<>();
             Map<Integer, KdnsAccessor> users = new HashMap<>();
-            // Charger les commandes uniquement si nécessaire
+
             if (!commandeIds.isEmpty() && commandeIds.size() <= BATCH_SIZE) {
                 try {
                     commandes = commandeRepository.findAllById(commandeIds)
@@ -926,10 +877,9 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
                             .collect(Collectors.toMap(Commande::getCommande, c -> c));
                 } catch (Exception e) {
                     System.err.println("Erreur lors du chargement des commandes: " + e.getMessage());
-                    // Continuer sans les données de commande
                 }
             }
-            // Charger les utilisateurs uniquement si nécessaire
+
             if (!userIds.isEmpty() && userIds.size() <= BATCH_SIZE) {
                 try {
                     users = kdnsAccessorRepository.findAllById(userIds)
@@ -937,12 +887,12 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
                             .collect(Collectors.toMap(KdnsAccessor::getAccessorId, u -> u));
                 } catch (Exception e) {
                     System.err.println("Erreur lors du chargement des utilisateurs: " + e.getMessage());
-                    // Continuer sans les données utilisateur
                 }
             }
+
             final Map<Long, Commande> finalCommandes = commandes;
             final Map<Integer, KdnsAccessor> finalUsers = users;
-            // Mapper les réceptions de ce lot
+
             List<ReceptionResponseDTO> batchResults = batch.stream()
                     .map(reception -> {
                         ReceptionResponseDTO dto = new ReceptionResponseDTO();
@@ -957,7 +907,6 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
                         dto.setCreatedDate(reception.getSysCreationDate());
                         dto.setDateReception(reception.getSysCreationDate());
 
-                        // Enrichissement avec les données pré-chargées (si disponibles)
                         if (reception.getCommande() != null) {
                             Commande commande = finalCommandes.get(Long.valueOf(reception.getCommande()));
                             if (commande != null) {
@@ -970,15 +919,16 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
                                 }
                             }
                         }
+
                         if (reception.getSysCreatorId() != null) {
                             KdnsAccessor creator = finalUsers.get(reception.getSysCreatorId());
-
                             if (creator != null) {
                                 dto.setUserLogin(creator.getLogin());
                                 dto.setCreatedBy(creator.getLogin());
                                 dto.setCreateurNom(formatUserName(creator));
                             }
                         }
+
                         return dto;
                     })
                     .collect(Collectors.toList());
@@ -1007,7 +957,6 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
         return dto;
     }
 
-    // MÉTHODE UTILITAIRE (ajoutez-la si elle n'existe pas déjà)
     private String formatUserName(KdnsAccessor accessor) {
         if (accessor.getFullName() != null && !accessor.getFullName().trim().isEmpty()) {
             return accessor.getFullName();
@@ -1017,6 +966,7 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
         String fullName = (firstName + " " + lastName).trim();
         return fullName.isEmpty() ? accessor.getLogin() : fullName;
     }
+
     private PagedResponse<ReceptionResponseDTO> buildEmptyPagedResponse(int page, int size) {
         PagedResponse<ReceptionResponseDTO> response = new PagedResponse<>();
         response.setContent(Collections.emptyList());
@@ -1030,12 +980,12 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
         response.setHasPrevious(false);
         return response;
     }
+
     private String extraireDepotDuCodeAffaire(String codeAffaire) {
         if (codeAffaire == null || (codeAffaire = codeAffaire.trim()).isEmpty()) {
             throw new BadRequestException("Code affaire invalide: " + codeAffaire);
         }
 
-        // Si ça commence par CH, on retire le préfixe
         String base = codeAffaire.startsWith("CH") ? codeAffaire.substring(2) : codeAffaire;
 
         if (base.length() < 3) {
@@ -1048,13 +998,14 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
         System.out.println("Extraction dépôt depuis: " + codeAffaire + " -> " + depot);
         return depot;
     }
+
     private String mapSortFieldToEntityProperty(String frontendField) {
         if (frontendField == null) {
             return "numero";
         }
 
         switch (frontendField.toLowerCase()) {
-            case "referenceBl":
+            case "referencebl":
                 return "pinotiers";
             case "datebl":
                 return "sysModificationDate";
@@ -1070,14 +1021,11 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
             case "id":
                 return "numero";
             default:
-                // Si le champ n'est pas reconnu, utiliser "numero" par défaut
                 System.out.println("⚠️ Champ de tri non reconnu: " + frontendField + ", utilisation de 'numero'");
                 return "numero";
         }
     }
-    /**
-     * ✅ NOUVELLE MÉTHODE : Changer le statut d'une réception avec intégration automatique dans Divalto
-     */
+
     @Override
     public ResponseMessage updateReceptionStatut(Integer receptionId, Integer newStatut, String currentUsername) {
         try {
@@ -1089,15 +1037,12 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
             Reception reception = getReceptionEntityById(receptionId);
             Integer oldStatut = reception.getSysState();
 
-            // Validation : on ne peut pas remettre une réception envoyée en brouillon
             if (oldStatut != null && oldStatut == 1 && newStatut == 0) {
                 throw new BadRequestException("Impossible de remettre une réception envoyée en brouillon");
             }
 
-            // Mise à jour du statut
             reception.setSysState(newStatut);
 
-            // Si on passe à "Envoyé" (statut 1), mettre à jour la date de réception
             if (newStatut == 1 && (oldStatut == null || oldStatut == 0)) {
                 reception.setSysCreationDate(LocalDateTime.now());
                 System.out.println("✅ Date de réception mise à jour");
@@ -1106,12 +1051,10 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
             receptionRepository.save(reception);
             System.out.println("✅ Réception sauvegardée avec le statut : " + newStatut);
 
-            // 🎯 INTÉGRATION DIVALTO
             if (newStatut == 1) {
                 System.out.println("🚀 Statut = 1 détecté - Déclenchement intégration Divalto...");
 
                 try {
-                    // Vérifier qu'il y a bien des lignes dans la réception
                     List<LigneReception> lignes = ligneReceptionRepository.findByEntId(reception.getNumero());
                     System.out.println("📋 Nombre de lignes : " + lignes.size());
 
@@ -1120,7 +1063,6 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
                         throw new BadRequestException("Impossible d'envoyer une réception sans ligne d'article");
                     }
 
-                    // Appel du service Divalto pour l'intégration
                     System.out.println("🔄 Appel de divaltoIntegrationReceptionService.integrerReceptionDansDivalto()...");
                     divaltoIntegrationReceptionService.integrerReceptionDansDivalto(receptionId, currentUsername);
                     System.out.println("✅ Intégration Divalto TERMINÉE avec succès !");
@@ -1129,7 +1071,6 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
                     System.err.println("❌ ERREUR Divalto: " + e.getMessage());
                     e.printStackTrace();
 
-                    // ROLLBACK : remettre l'ancien statut
                     reception.setSysState(oldStatut != null ? oldStatut : 0);
                     receptionRepository.save(reception);
                     System.out.println("🔄 Rollback effectué - statut restauré à : " + (oldStatut != null ? oldStatut : 0));
@@ -1155,6 +1096,5 @@ public List<DemandeAchatFileResponseDTO> getReceptionFiles(Integer receptionId) 
             throw new RuntimeException("Erreur lors du changement de statut : " + e.getMessage(), e);
         }
     }
+
 }
-
-

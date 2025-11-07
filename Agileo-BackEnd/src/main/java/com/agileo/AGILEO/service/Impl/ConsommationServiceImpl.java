@@ -8,11 +8,13 @@ import com.agileo.AGILEO.exception.ResourceNotFoundException;
 import com.agileo.AGILEO.message.ResponseMessage;
 import com.agileo.AGILEO.repository.primary.*;
 import com.agileo.AGILEO.service.ConsommationService;
+import com.agileo.AGILEO.service.DivaltoIntegrationConsommationService;
 import com.agileo.AGILEO.service.FileService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,11 +28,9 @@ public class ConsommationServiceImpl implements ConsommationService {
     private final LigneConsommationRepository ligneConsommationRepository;
     private final AffaireRepository affaireRepository;
     private final KdnsAccessorRepository kdnsAccessorRepository;
-    private final ArticleErpRepository articleErpRepository;
-    private final LigneReceptionRepository ligneReceptionRepository;
     private final UserServiceImpl userService;
-    private final FileService fileService;
     private final ArticleEnStockRepository articleEnStockRepository;
+    private final DivaltoIntegrationConsommationService divaltoIntegrationConsommationService;
 
     public ConsommationServiceImpl(
             ConsommationRepository consommationRepository,
@@ -41,16 +41,14 @@ public class ConsommationServiceImpl implements ConsommationService {
             LigneReceptionRepository ligneReceptionRepository,
             UserServiceImpl userService,
             FileService fileService,
-            ArticleEnStockRepository articleEnStockRepository) {
+            ArticleEnStockRepository articleEnStockRepository, DivaltoIntegrationConsommationService divaltoIntegrationConsommationService) {
         this.consommationRepository = consommationRepository;
         this.ligneConsommationRepository = ligneConsommationRepository;
         this.affaireRepository = affaireRepository;
         this.kdnsAccessorRepository = kdnsAccessorRepository;
-        this.articleErpRepository = articleErpRepository;
-        this.ligneReceptionRepository = ligneReceptionRepository;
         this.userService = userService;
-        this.fileService = fileService;
         this.articleEnStockRepository = articleEnStockRepository;
+        this.divaltoIntegrationConsommationService = divaltoIntegrationConsommationService;
     }
 
     @Override
@@ -245,25 +243,138 @@ public class ConsommationServiceImpl implements ConsommationService {
             return Collections.emptyList();
         }
     }
+
     @Override
-    public ResponseMessage envoyerConsommation(Integer id, String currentUsername) {
-        Consommation consommation = getConsommationEntityById(id);
-
-        if (consommation.isEnvoye()) {
-            throw new BadRequestException("Cette consommation est déjà envoyée");
-        }
-
-        long nbLignes = ligneConsommationRepository.countByNumCons(id);
-        if (nbLignes == 0) {
-            throw new BadRequestException("Impossible d'envoyer une consommation vide");
-        }
-
-        consommation.marquerCommeEnvoye();
-        consommation.setSysModificationDate(LocalDateTime.now());
-        consommationRepository.save(consommation);
-
-        return new ResponseMessage("Consommation envoyée avec succès");
+    public ResponseMessage updateConsommationStatut(Integer consommationId, Integer newStatut, String currentUsername) {
+        return null;
     }
+
+    @Override
+    public ResponseMessage envoyerConsommation(Integer consommationId, String currentUsername) {
+        try {
+            System.out.println("═══════════════════════════════════════════════════════════════");
+            System.out.println("🚀 DÉBUT envoyerConsommation");
+            System.out.println("   Consommation ID: " + consommationId);
+            System.out.println("   Utilisateur: " + currentUsername);
+            System.out.println("═══════════════════════════════════════════════════════════════");
+
+            // 1. Récupérer la consommation
+            Consommation consommation = getConsommationEntityById(consommationId);
+            Integer oldStatut = consommation.getStatut();
+
+            System.out.println("📋 Statut actuel de la consommation : " + oldStatut + " (" + getStatutLabel(oldStatut) + ")");
+
+            // ✅ CORRECTION CRITIQUE : Vérifier TOUS les statuts >= 1 (Envoyé ou Reçu)
+            if (oldStatut != null && oldStatut >= 1) {
+                String message = "Cette consommation a déjà été intégrée dans Divalto " +
+                        "(statut actuel: " + getStatutLabel(oldStatut) + "). " +
+                        "Une consommation ne peut être envoyée qu'une seule fois.";
+                System.err.println("❌ VALIDATION ÉCHOUÉE: " + message);
+                throw new BadRequestException(message);
+            }
+
+            // 2. Vérifier qu'il y a au moins une ligne
+            List<LigneConsommation> lignes = ligneConsommationRepository.findByNumCons(consommation.getIdBc());
+            System.out.println("📦 Nombre de lignes de consommation : " + lignes.size());
+
+            if (lignes.isEmpty()) {
+                System.err.println("⚠️ ATTENTION : Aucune ligne de consommation !");
+                throw new BadRequestException("Impossible d'envoyer une consommation sans ligne d'article");
+            }
+
+            // 3. Afficher le détail des lignes pour traçabilité
+            System.out.println("📝 Détail des lignes :");
+            for (int i = 0; i < lignes.size(); i++) {
+                LigneConsommation ligne = lignes.get(i);
+                System.out.println("   [" + (i+1) + "] Article: " + ligne.getRef() +
+                        ", Quantité: " + ligne.getQte() +
+                        ", Unité: " + ligne.getUnite());
+            }
+
+            // 4. Mettre à jour le statut à 1 (Envoyé) AVANT l'intégration
+            System.out.println("🔄 Mise à jour du statut à 1 (Envoyé)...");
+            consommation.setStatut(1);
+            consommation.setSysModificationDate(LocalDateTime.now());
+
+            // 5. Mettre à jour la date de consommation si nécessaire
+            if (consommation.getDateC() == null) {
+                consommation.setDateC(LocalDateTime.now());
+                System.out.println("✅ Date de consommation mise à jour: " + consommation.getDateC());
+            }
+
+            // 6. Sauvegarder la consommation avec le nouveau statut
+            consommationRepository.save(consommation);
+            System.out.println("✅ Consommation sauvegardée avec le statut : Envoyé (1)");
+
+            // 7. Déclencher l'intégration Divalto
+            System.out.println("═══════════════════════════════════════════════════════════════");
+            System.out.println("🚀 DÉCLENCHEMENT DE L'INTÉGRATION DIVALTO");
+            System.out.println("═══════════════════════════════════════════════════════════════");
+
+            try {
+                // Appel du service d'intégration Divalto
+                divaltoIntegrationConsommationService.integrerConsommationDansDivalto(consommationId, currentUsername);
+
+                System.out.println("═══════════════════════════════════════════════════════════════");
+                System.out.println("✅ INTÉGRATION DIVALTO TERMINÉE AVEC SUCCÈS !");
+                System.out.println("═══════════════════════════════════════════════════════════════");
+
+                // ✅ CORRECTION : Mettre à jour le statut à 2 (Reçu) APRÈS succès
+                consommation.setStatut(2);
+                consommation.setSysModificationDate(LocalDateTime.now());
+                consommationRepository.save(consommation);
+                System.out.println("✅ Statut final mis à jour : Reçu (2)");
+
+            } catch (Exception e) {
+                System.err.println("═══════════════════════════════════════════════════════════════");
+                System.err.println("❌ ERREUR LORS DE L'INTÉGRATION DIVALTO");
+                System.err.println("═══════════════════════════════════════════════════════════════");
+                System.err.println("Message d'erreur: " + e.getMessage());
+                e.printStackTrace();
+
+                // ✅ ROLLBACK : Restaurer le statut initial en cas d'erreur
+                System.out.println("🔄 Démarrage du rollback...");
+                consommation.setStatut(oldStatut != null ? oldStatut : 0);
+                consommation.setSysModificationDate(LocalDateTime.now());
+                consommationRepository.save(consommation);
+                System.out.println("✅ Rollback effectué - statut restauré à : " +
+                        (oldStatut != null ? oldStatut : 0) + " (" + getStatutLabel(oldStatut) + ")");
+
+                // Relancer l'exception avec un message clair
+                throw new RuntimeException(
+                        "Échec de l'intégration dans Divalto : " + e.getMessage() +
+                                ". Le statut de la consommation a été restauré.",
+                        e
+                );
+            }
+
+            System.out.println("═══════════════════════════════════════════════════════════════");
+            System.out.println("🎉 FIN envoyerConsommation - SUCCÈS COMPLET");
+            System.out.println("   Consommation ID: " + consommationId);
+            System.out.println("   Statut final: 2 (Reçu)");
+            System.out.println("═══════════════════════════════════════════════════════════════");
+
+            return new ResponseMessage("Consommation envoyée et intégrée dans Divalto avec succès");
+
+        } catch (BadRequestException | ResourceNotFoundException e) {
+            // Erreurs métier - ne pas logger le stack trace complet
+            System.err.println("❌ Erreur de validation : " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            // Erreur Divalto déjà loggée et gérée
+            System.err.println("❌ Erreur d'intégration Divalto : " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            // Erreur technique inattendue
+            System.err.println("❌ Exception technique inattendue : " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException(
+                    "Erreur technique lors de l'envoi de la consommation : " + e.getMessage(),
+                    e
+            );
+        }
+    }
+
 
     @Override
     public ResponseMessage deleteConsommation(Integer id) {

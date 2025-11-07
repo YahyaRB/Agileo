@@ -2,20 +2,16 @@ package com.agileo.AGILEO.service.Impl;
 
 
 import com.agileo.AGILEO.Dtos.EntProjection;
-import com.agileo.AGILEO.entity.divalto.ENT;
-import com.agileo.AGILEO.entity.divalto.MJoint;
-import com.agileo.AGILEO.entity.divalto.MOUV;
+import com.agileo.AGILEO.entity.divalto.*;
 import com.agileo.AGILEO.entity.primary.*;
 import com.agileo.AGILEO.exception.ResourceNotFoundException;
 import com.agileo.AGILEO.repository.divalto.*;
 import com.agileo.AGILEO.repository.primary.*;
 import com.agileo.AGILEO.service.DivaltoIntegrationReceptionService;
 import com.agileo.AGILEO.service.SocPrefNoService;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.Query;
+import jakarta.persistence.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -25,8 +21,10 @@ import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,11 +42,16 @@ public class DivaltoIntegrationReceptionImpService implements DivaltoIntegration
     private KdnFileRepository kdnFileRepository;
 
     @Autowired
+    private ArtRepository artRepository;
+
+    @Autowired
     private EntRepository entRepository;;
 
     @Autowired
-    private MouvRepository MOUVRepository;
+    private MouvRepository mouvRepository;
 
+    @Autowired
+    private SocnoRepository socnoRepository;
     @Autowired
     private MJointRepository mJointRepository;
 
@@ -60,6 +63,10 @@ public class DivaltoIntegrationReceptionImpService implements DivaltoIntegration
     private EntityManager divaltoEntityManager;
     @Autowired
     private SocPrefNoService socPrefNoService;
+    @Autowired
+    private MvtlRepository mvtlRepository;
+
+
     /**
      * Point d'entrée principal : Enregistrer une réception dans Divalto
      */
@@ -133,30 +140,208 @@ public class DivaltoIntegrationReceptionImpService implements DivaltoIntegration
                         ENT entBL = creerEnteteBL(reception, currentUsername, finalFichiers, jointNumber, finalPinoCommande);
                         System.out.println("   ✅ Entête créé en mémoire - PINO prévu: " + entBL.getPino());
 
-                        entBL = entRepository.save(entBL);
+                        try {
+                            entBL = entRepository.save(entBL);
+                            System.out.println("✅ Entête BL SAUVEGARDÉ avec succès - PINO: " + entBL.getPino());
+                        } catch (Exception e) {
+                            System.err.println("❌ ERREUR SAUVEGARDE entête BL:");
+                            System.err.println("   PINO tenté: " + entBL.getPino());
+                            System.err.println("   Message: " + e.getMessage());
+                            if (e.getCause() != null) {
+                                System.err.println("   Cause: " + e.getCause().getMessage());
+                            }
+                            throw new RuntimeException("Échec sauvegarde entête BL - PINO: " + entBL.getPino(), e);
+                        }
+
                         System.out.println("   ✅ Entête BL SAUVEGARDÉ - PINO: " + entBL.getPino());
 
-                        // Mettre à jour la réception avec le PINO Divalto
+// ⭐ APPEL DES MÉTHODES POUR METTRE À JOUR LES ENTÊTES ⭐
+                        System.out.println("   🔄 Mise à jour des entêtes BC/BL...");
+                        mettreAJourEntetesBC_BL(lignes, finalPinoCommande, entBL);
+                        System.out.println("   ✅ Entêtes BC/BL mis à jour avec succès !");
+
+// Mettre à jour la réception avec le PINO Divalto
                         reception.setBlDivalto(entBL.getPino().intValue());
                         receptionRepository.save(reception);
 
                         // Créer les lignes MOUV avec LILG incrémenté
                         System.out.println("   📝 Création des lignes MOUV...");
                         int ligneNumber = 1;
+
+
+                        int nbLigneBL=0;
+
                         for (LigneReception ligne : lignes) {
-                            MOUV mouvLig = creerLigneMouv(ligne, entBL, currentUsername, ligneNumber);
-                            mouvLig = MOUVRepository.save(mouvLig);
-                            System.out.println("   ✅ Ligne MOUV SAUVEGARDÉE - LILG: " + ligneNumber +
-                                    ", REF: " + mouvLig.getRef() + ", ENRNO: " + mouvLig.getEnrno());
+                            Integer maxnbLignesDivalto=mouvRepository.maxNbLigneBLByBC( BigDecimal.valueOf(ligne.getCommande()),
+                                    ligne.getArticle());
+                            if(maxnbLignesDivalto != null){
+                                nbLigneBL=maxnbLignesDivalto;
+                            }else{
+                                nbLigneBL=0;
+                            }
+                            nbLigneBL++;
 
-                            // Mettre à jour le statut d'intégration de la ligne
-                            ligne.setIntegre(1); // Intégré
-                            ligne.setBlDiva(entBL.getPino().intValue());
-                            ligneReceptionRepository.save(ligne);
+                            Optional<MOUV> mouvOpt = mouvRepository.findLigneCommandeByPinoAndRef(
+                                    BigDecimal.valueOf(ligne.getCommande()),
+                                    ligne.getArticle()
+                            );
 
-                            ligneNumber++;
+                            if (mouvOpt.isPresent()) {
+                                MOUV mouvForUpdate = mouvOpt.get();
+                                MOUV mouvForInsert = new MOUV();
+                                BeanUtils.copyProperties(mouvForUpdate, mouvForInsert);
+
+                                Mvtl mvtlOriginal = mvtlRepository.findMouvementByEnrno(mouvForInsert.getRef(), BigDecimal.valueOf(ligne.getCommande())).get();
+
+                                // Créer une référence pour l'update (sera transformé en BL)
+                                Mvtl mvtlForUpdate = mvtlOriginal;
+
+                                // Créer une copie pour l'insert (nouveau BC avec reste)
+                                Mvtl mvtlForInsert = new Mvtl();
+                                BeanUtils.copyProperties(mvtlOriginal, mvtlForInsert);
+
+                                // 1️⃣ Modifier l'existant
+                                mouvForUpdate.setCe7("1");
+                                mouvForUpdate.setCe9("1");
+                                mouvForUpdate.setPicod(BigDecimal.valueOf(3));
+                                mouvForUpdate.setCdlg(BigDecimal.valueOf(2));
+                                mouvForUpdate.setCdce4(BigDecimal.valueOf(8));
+                                mouvForUpdate.setBlno(entBL.getPino());
+                                mouvForUpdate.setBldt(entBL.getPidt());
+                                mouvForUpdate.setBllg(BigDecimal.valueOf(nbLigneBL));
+                                mouvForUpdate.setBlce4("1");
+                                mouvForUpdate.setCdqte(ligne.getQte());
+                                mouvForUpdate.setBlqte(ligne.getQte());
+                                BigDecimal qte = ligne.getQte();
+                                BigDecimal pub = mouvForUpdate.getPub();
+                                BigDecimal montant = qte.multiply(pub);
+                                mouvForUpdate.setMont(montant);
+                                mouvForUpdate.setCrtotmt(montant); //
+                                mouvForUpdate.setCmptotmt(montant); //
+                                mouvForUpdate.setPrgqte(ligne.getQte());
+                                mouvForUpdate.setArtind("        ");
+                                mouvForUpdate.setBlenrno(mouvForUpdate.getEnrno());
+                                mouvForUpdate.setSolderelfl(BigDecimal.ONE);
+                                mouvForUpdate.setPustat(mouvForUpdate.getPub());
+                                mouvForUpdate.setRefqte(qte);
+                                mouvForUpdate.setLivdirectfl(BigDecimal.valueOf(2));
+
+                                mouvRepository.save(mouvForUpdate);
+                                mouvRepository.flush();
+                                // 2️⃣ Détacher l'entité du contexte de persistance
+                                divaltoEntityManager.detach(mouvForUpdate);
+
+                                // 3️⃣ Réinitialiser l'ID pour créer une nouvelle ligne
+                                BigDecimal nouvelleCdqte = mouvForInsert.getCdqte().subtract(ligne.getQte());
+                                if (nouvelleCdqte.compareTo(BigDecimal.ZERO) > 0){
+                                    divaltoEntityManager.detach(mouvForInsert);
+                                    mouvForInsert.setMouvId(null);
+
+                                    mouvForInsert.setEnrno(socnoRepository.findByNumEnrgForUpdate().add(BigDecimal.ONE));
+                                    socnoRepository.incrementNumEnrg();
+                                    mouvForInsert.setCdqte(nouvelleCdqte);
+                                    mouvForInsert.setRefqte(nouvelleCdqte);
+                                    mouvForInsert.setCe7(" ");
+                                    mouvForInsert.setCe9(" ");
+                                    mouvForInsert.setArtind("        ");
+                                    mouvForInsert.setCdce4(BigDecimal.ONE);
+                                    mouvForInsert.setBllg(BigDecimal.ONE);
+                                    mouvForInsert.setBlno(BigDecimal.ZERO);
+                                    mouvForInsert.setBllg(BigDecimal.ZERO);
+                                    mouvForInsert.setLivdirectfl(BigDecimal.valueOf(2));
+                                    mouvForInsert.setBlqte(BigDecimal.ZERO);
+                                    mouvForInsert.setBlqte(BigDecimal.ZERO);
+                                    mouvForInsert.setBlenrno(BigDecimal.ZERO);
+                                    mouvForInsert.setSolderelfl(BigDecimal.ZERO);
+                                    mouvForInsert.setBldt(null);
+                                    mouvForInsert.setBlce4(" ");
+                                    mouvForInsert.setPicod(BigDecimal.valueOf(2));
+                                    BigDecimal nouveauMontant = nouvelleCdqte.multiply(mouvForInsert.getPub());
+                                    mouvForInsert.setMont(nouveauMontant);
+                                    mouvForInsert.setCrtotmt(nouveauMontant);
+                                    mouvForInsert.setCmptotmt(nouveauMontant);
+                                    // 5️⃣ Sauvegarder = INSERT d'une nouvelle ligne
+                                    MOUV mouvBC=mouvForInsert;
+                                    mouvRepository.save(mouvForInsert);
+                                    mouvRepository.flush();
+                                    System.out.println("   ✅ Nouvelle ligne créée par clonage"+mouvForInsert);
+                                    ///////  creation ventilation BC////////
+                                    System.out.println("mvtlForInsert : "+mvtlForInsert);
+                                    divaltoEntityManager.detach(mvtlForInsert);
+                                    mvtlForInsert.setMvtlId(null);
+                                    mvtlForInsert.setCe3("1");
+                                    mvtlForInsert.setCe1("V");
+                                    mvtlForInsert.setCe4("1");
+                                    mvtlForInsert.setEnrno(mouvBC.getEnrno());
+                                    mvtlForInsert.setUsercrdh(LocalDate.now().atStartOfDay());
+                                    BigDecimal nouveauVTLNO = socnoRepository.findByVtlnoForUpdate().add(BigDecimal.ONE);
+                                    mvtlForInsert.setVtlno(nouveauVTLNO);
+                                    socnoRepository.incrementVtlnoEnrg();
+                                    mvtlForInsert.setQte(mouvBC.getCdqte());
+                                    mvtlForInsert.setRefqte(mouvBC.getCdqte());
+                                    mvtlForInsert.setArtind("        "); // ✅ 8 espaces
+
+                                    mvtlRepository.save(mvtlForInsert);
+                                    mvtlRepository.flush();
+                                    System.out.println("   ✅ Nouvelle ligne MVTL BC créée par clonage");
+                                }
+
+/// ///////////////////////////////////////////Code MVTL////////////////////////////////////////////////
+                                // ✅ CORRECTION ICI : Exclure mvtlId lors de la copie pour BL
+
+
+                                System.out.println("MVTL DETAIL xxxxxxxx : " + mvtlForUpdate);
+
+
+                                // 1️⃣ Modifier l'existant pour BL
+                                mvtlForUpdate.setCe4("1");
+                                mvtlForUpdate.setCe1("V");
+                                mvtlForUpdate.setArtind("        "); // ✅ 8 espaces
+                                mvtlForUpdate.setCe3("");
+                                mvtlForUpdate.setCea("1");
+                                mvtlForUpdate.setPicod(BigDecimal.valueOf(3));
+                                mvtlForUpdate.setEnrno(mouvForUpdate.getEnrno());
+                                mvtlForUpdate.setUsermo(String.format("%-20s", currentUsername.toUpperCase()));
+                                mvtlForUpdate.setUsermodh(LocalDate.now().atStartOfDay());
+                                mvtlForUpdate.setBldt(mouvForUpdate.getBldt());
+                                mvtlForUpdate.setCmp(mvtlForUpdate.getCr());
+                                mvtlForUpdate.setPino(entBL.getPino()); // ✅ CORRECTION: Utiliser le PINO du BL au lieu du BC
+                                mvtlForUpdate.setQte(mouvForUpdate.getBlqte());
+                                mvtlForUpdate.setRefqte(mouvForUpdate.getBlqte());
+                                mvtlForUpdate.setStqte(mouvForUpdate.getBlqte());
+                                mvtlForUpdate.setStatus(BigDecimal.valueOf(2));
+
+                                mvtlRepository.save(mvtlForUpdate);
+                                mvtlRepository.flush();
+                                System.out.println("   ✅ Ligne MVTL BL mise à jour");
+
+                                // 5. Mise à jour du stock total de l'article
+                                try {
+                                    ART article = artRepository.findByRef(ligne.getArticle());
+                                    if (article != null) {
+                                        BigDecimal nouvelleQuantite = article.getSttotqte().add(ligne.getQte());
+                                        article.setSttotqte(nouvelleQuantite);
+                                        artRepository.saveAndFlush(article);
+                                        log.info("✅ Stock total article mis à jour: {}", nouvelleQuantite);
+                                    }
+                                } catch (Exception e) {
+                                    log.warn("⚠️ Erreur mise à jour stock total article: {}", e.getMessage());
+                                }
+
+
+                                ligne.setIntegre(1);
+                                ligne.setBlDiva(entBL.getPino().intValue());
+                                ligneReceptionRepository.save(ligne);
+
+                                ligneNumber++;
+                            }
                         }
-
+                        Integer nbLignesBC= mouvRepository.countLigneBC(BigDecimal.valueOf(reception.getCommande()));
+                        System.out.println("nbLignesBC : "+nbLignesBC);
+                        if(nbLignesBC==0 || nbLignesBC == null){
+                            System.out.println();
+                            entRepository.updateEntBCPerime(BigDecimal.valueOf(reception.getCommande()));
+                        }
                         // Créer les pièces jointes avec le MÊME numéro JOINT
                         if (finalFichiers != null && !finalFichiers.isEmpty()) {
                             System.out.println("   📝 Création des pièces jointes...");
@@ -191,672 +376,120 @@ public class DivaltoIntegrationReceptionImpService implements DivaltoIntegration
     /**
      * Créer l'entête BL pour Divalto (PICOD=3)
      */
+
     @Override
     public ENT creerEnteteBL(Reception reception, String currentUsername,
-                             List<KdnFile> fichiers, BigDecimal jointNumber, BigDecimal pinoCommande) {
-        ENT entBL = new ENT();
-        Optional<EntProjection> result = entRepository.findEntInfoByPinoAndPicod(pinoCommande);
+                             List<KdnFile> fichiers, BigDecimal jointNumber,
+                             BigDecimal pinoCommande) {
 
-        entBL.setCe1("A");
-        entBL.setCe2(" ");
-        entBL.setCe3("1");
-        entBL.setCe4("1");
-        entBL.setCe5("1");
-        entBL.setCe6(" ");
-        entBL.setCe7(" ");
-        entBL.setCe8(" ");
-        entBL.setCe9(" ");
-        entBL.setCea(" ");
-        entBL.setCeb(" ");
-        entBL.setCec(" ");
-        entBL.setCed(" ");
-        entBL.setCee(" ");
-        entBL.setCef(" ");
-        entBL.setDos("1");
-        entBL.setTicod("F");
-        entBL.setPicod(BigDecimal.valueOf(3));
-        entBL.setTiers(result.get().getTiers());
-        entBL.setPrefpino("");
-        BigDecimal nextPiNo = socPrefNoService.getNextPinoForBL();
+        System.out.println("🔄 Création sécurisée de l'entête BL...");
 
-        entBL.setPino(nextPiNo);
-        entBL.setPidt(LocalDate.from(reception.getSysModificationDate()));
-        entBL.setEtb("");
-        entBL.setStatus(BigDecimal.valueOf(2));
-        entBL.setDev("MAD");
-        entBL.setOp("F  ");
-        String paddedUsername = String.format("%-20s", currentUsername.toUpperCase());
-        entBL.setUsercr(paddedUsername);
-        entBL.setUsermo("");
-        entBL.setRepr0001("");
-        entBL.setRepr0002("");
-        entBL.setRepr0003("");
-        entBL.setRibcod("");
-        entBL.setMarche("");
-        entBL.setProjet(result.get().getProjet());
-        entBL.setDepo(result.get().getDepo());
-        entBL.setAdrtiers0001("                    "); // 20 espaces
-        entBL.setAdrtiers0002("                    ");
-        entBL.setAdrtiers0003("                    ");
-        entBL.setAdrtiers0004("                    ");
-        entBL.setAdrtiers0005("                    ");
-        entBL.setAdrcod0001("        "); // 8 espaces
-        entBL.setAdrcod0002("        ");
-        entBL.setAdrcod0003("        ");
-        entBL.setAdrcod0004("        ");
-        entBL.setAdrcod0005("        ");
-        entBL.setBlmod("");
-        entBL.setRegl(result.get().getRegl());
-        entBL.setTour("");
-        String piRef = "";
-        if (reception.getNumero() != null) {
-            piRef = "N° BL Agileo: " + reception.getNumero();
+        try {
+            // 1. Récupérer l'entête BC existant
+            ENT enteteBC = entRepository.findByPinoAndPicod(pinoCommande, BigDecimal.valueOf(2));
+            if (enteteBC == null) {
+                throw new IllegalStateException("BC non trouvé avec PINO: " + pinoCommande);
+            }
+
+            // 2. Créer copie sécurisée
+            ENT entBL = new ENT();
+            BeanUtils.copyProperties(enteteBC, entBL);
+            entBL.setEntId(null);
+
+            // 3. ⭐ GÉNÉRER PINO SÉCURISÉ ⭐
+
+            entBL.setPino(socPrefNoService.getNextPinoForBL());
+
+            // 4. Modifier les champs qui changent
+            entBL.setCe3("1");
+            entBL.setPicod(BigDecimal.valueOf(3));
+            entBL.setStatus(BigDecimal.valueOf(2));
+            entBL.setPirelcod(BigDecimal.ONE);
+            entBL.setPiref("N° BL Agileo: "+reception.getNumero());
+            // 5. ⭐ SÉCURISER LES MONTANTS ⭐
+            entBL.setHtmt(BigDecimal.ZERO);
+            entBL.setTtcmt(BigDecimal.ZERO);
+            entBL.setHtpdtmt(BigDecimal.ZERO);
+
+            // 6. ⭐ SÉCURISER LES CHAMPS CALCULÉS ⭐
+            entBL.setRefnb(BigDecimal.ZERO);
+            entBL.setRempietot(BigDecimal.ZERO);
+
+            // 7. Dates et utilisateur
+            LocalDateTime now = LocalDateTime.now();
+            entBL.setUsercrdh(now);
+            entBL.setUsermodh(now);
+
+            String paddedUsername = String.format("%-20s", currentUsername.toUpperCase());
+            entBL.setUsercr(paddedUsername);
+            entBL.setUsermo(paddedUsername);
+
+            // 8. PINOTIERS sécurisé
+            if (reception.getPinotiers() != null && !reception.getPinotiers().trim().isEmpty()) {
+                String pinotiers = reception.getPinotiers().trim();
+                if (pinotiers.length() > 20) pinotiers = pinotiers.substring(0, 20);
+                entBL.setPinotiers(String.format("%-20s", pinotiers));
+            } else {
+                entBL.setPinotiers("                    ");
+            }
+
+            // 9. Pièces jointes sécurisées
+            if (fichiers != null && !fichiers.isEmpty() && jointNumber != null) {
+                // Vérifier que JOINT n'est pas trop grand
+                if (jointNumber.compareTo(new BigDecimal("999999999")) <= 0) {
+                    entBL.setCejoint(BigDecimal.valueOf(2));
+                    entBL.setJoint(jointNumber);
+                } else {
+                    entBL.setCejoint(BigDecimal.ONE);
+                    entBL.setJoint(BigDecimal.ZERO);
+                    System.err.println("⚠️ JOINT trop grand, mis à 0 : " + jointNumber);
+                }
+            } else {
+                entBL.setCejoint(BigDecimal.ONE);
+            }
+
+            System.out.println("✅ Entête BL sécurisé créé - PINO: " + entBL.getPino());
+            return entBL;
+
+        } catch (Exception e) {
+            System.err.println("❌ ERREUR création entête BL: " + e.getMessage());
+            throw new RuntimeException("Échec création entête BL", e);
         }
-        entBL.setPiref(piRef);
-        entBL.setPinotiers(reception.getPinotiers());
-        entBL.setTierspayer("");
-        entBL.setTiersgrp("");
-        entBL.setTiersrlv("");
-        entBL.setBapsalcod("");
-        entBL.setSalcod("");
-        entBL.setPrefrlvno("");
-        entBL.setRlvno(BigDecimal.ZERO);
-        entBL.setRlvdt(null);
-        entBL.setDeldemdt(result.get().getDeldemdt());
-
-        entBL.setDelaccdt(result.get().getDelaccdt());
-        entBL.setDelrepdt(null);
-        entBL.setEchdt(null);
-        entBL.setTafam("");
-        entBL.setTafamx("");
-        entBL.setRefam("");
-        entBL.setRefamx("");
-        entBL.setTacod("");
-        entBL.setRemcod("");
-        entBL.setCofam("");
-        entBL.setCofamv0001("");
-        entBL.setCofamv0002("");
-        entBL.setCofamv0003("");
-        entBL.setAxe0001("");
-        entBL.setAxe0002("");
-        entBL.setAxe0003("");
-        entBL.setAxe0004("");
-        entBL.setEtano(" ");
-        entBL.setTxtedcodd("");
-        entBL.setTxtedcodf("");
-        entBL.setContact("");
-        entBL.setPrefblasno("");
-        entBL.setBlasno(BigDecimal.ZERO);
-        entBL.setBlasdepo("");
-        entBL.setTpft("");
-        entBL.setAvenant("");
-        entBL.setCesintcod(BigDecimal.ZERO);
-        entBL.setPromotacod("");
-        entBL.setPromoremcod("");
-        entBL.setPrefcdnopere("");
-        entBL.setCdnopere(BigDecimal.ZERO);
-        entBL.setTpvbl(BigDecimal.ZERO);
-        entBL.setDeeeinccod(BigDecimal.valueOf(0));
-        entBL.setPrefpina("");
-        entBL.setPina(BigDecimal.ZERO);
-        entBL.setUsercrdh(LocalDateTime.now());
-        entBL.setUsermodh(null);
-        entBL.setCenote(BigDecimal.ONE);
-        entBL.setNote(BigDecimal.ZERO);
-        entBL.setTxtcodd(BigDecimal.ONE);
-        entBL.setTxtcodf(BigDecimal.ONE);
-        entBL.setTxtnoted(BigDecimal.ZERO);
-        entBL.setTxtnotef(BigDecimal.ZERO);
-        entBL.setOrigine(result.get().getOrigine());
-        entBL.setHtmt(BigDecimal.valueOf(9999.99));           // Montant HT
-        entBL.setTtcmt(BigDecimal.valueOf(99999.99));
-        entBL.setHtpdtmt(BigDecimal.valueOf(99999.99));
-        entBL.setEscp(BigDecimal.valueOf(0.00));
-        entBL.setAcmt(BigDecimal.valueOf(0,00));
-        entBL.setSoacmt(BigDecimal.valueOf(0.00));
-        entBL.setRemmt(BigDecimal.valueOf(0.00));
-        entBL.setRem1(BigDecimal.valueOf(0.00));
-        entBL.setRemtyp1(BigDecimal.ONE);
-        entBL.setFouhtmt(BigDecimal.valueOf(0.00));
-        entBL.setFouescmt(BigDecimal.valueOf(0.00));       // Escompte fournisseur
-        entBL.setFoutvamt(BigDecimal.valueOf(0.00));
-        entBL.setDevp(BigDecimal.valueOf(1.0000));
-        entBL.setPiedno0001(BigDecimal.ZERO);
-        entBL.setPiedno0002(BigDecimal.ZERO);
-        entBL.setPiedno0003(BigDecimal.ZERO);
-        entBL.setPiedmt0001(BigDecimal.valueOf(0.00));
-        entBL.setPiedmt0002(BigDecimal.valueOf(0.00));
-        entBL.setPiedmt0003(BigDecimal.valueOf(0.00));
-        entBL.setNbex(BigDecimal.ONE);
-        entBL.setPirelcod(BigDecimal.ONE);
-        entBL.setRelcod(BigDecimal.valueOf(2));
-        entBL.setEditcod(BigDecimal.ONE);
-        entBL.setTrcod(BigDecimal.ONE);
-        entBL.setBoredicod(BigDecimal.ONE);
-        entBL.setAscod(BigDecimal.ONE);
-        entBL.setEchvcod(BigDecimal.ONE);
-        entBL.setEncasscod(BigDecimal.ONE);
-        entBL.setAdrtyp0001(BigDecimal.ONE);
-        entBL.setAdrtyp0002(BigDecimal.ONE);
-        entBL.setAdrtyp0003(BigDecimal.ONE);
-        entBL.setAdrtyp0004(BigDecimal.ONE);
-        entBL.setAdrtyp0005(BigDecimal.ONE);
-        entBL.setPriocod(BigDecimal.ZERO);
-        entBL.setHtcod(BigDecimal.ONE);
-        entBL.setStres(BigDecimal.ONE);
-        entBL.setFamod(BigDecimal.ZERO);
-        entBL.setPeriod(BigDecimal.ZERO);
-        entBL.setPorcod(BigDecimal.ONE);
-        entBL.setPoicod(BigDecimal.ONE);
-        entBL.setVolcod(BigDecimal.ONE);
-        entBL.setPorfrfl(BigDecimal.valueOf(2));
-        entBL.setPoitot(BigDecimal.valueOf(0,00));
-        entBL.setVoltot(BigDecimal.valueOf(0,00));
-        entBL.setColinb(BigDecimal.ZERO);
-        BigDecimal totalQuantite = ligneReceptionRepository.sumQuantiteByEntId(reception.getNumero());
-
-        entBL.setRefnb(totalQuantite);
-        entBL.setTourrg(BigDecimal.ZERO);
-        entBL.setRem0001(BigDecimal.valueOf(0,00));
-        entBL.setRem0002(BigDecimal.valueOf(0,00));
-        entBL.setRem0003(BigDecimal.valueOf(0,00));
-        entBL.setRemtyp0001(BigDecimal.valueOf(2));
-        entBL.setRemtyp0002(BigDecimal.valueOf(2));
-        entBL.setRemtyp0003(BigDecimal.valueOf(2));
-        entBL.setComp0001(BigDecimal.valueOf(0.00));
-        entBL.setComp0002(BigDecimal.valueOf(0.00));
-        entBL.setComp0003(BigDecimal.valueOf(0.00));
-        entBL.setPortheomt(BigDecimal.valueOf(0.00));
-        entBL.setRempietot(BigDecimal.valueOf(0.00));
-        entBL.setTransjrnb(BigDecimal.ZERO);
-        entBL.setOfascod(BigDecimal.ZERO);
-        entBL.setFinalField(BigDecimal.ONE);
-        entBL.setQuacod(BigDecimal.valueOf(2));
-        if (fichiers != null && !fichiers.isEmpty()) {
-            entBL.setCejoint(BigDecimal.valueOf(2));
-            entBL.setJoint(jointNumber);
-            entBL.setCenote(BigDecimal.valueOf(1)); // Note présente
-        } else {
-            entBL.setCejoint(BigDecimal.ONE);
-            entBL.setJoint(BigDecimal.ZERO);
-
-        }
-        entBL.setDeeemt(BigDecimal.ZERO);
-        entBL.setFoudeeemt(BigDecimal.valueOf(0,00));
-        entBL.setPrgcdeflg(BigDecimal.ONE);
-        entBL.setBqcpce(result.get().getBqcpce());
-        entBL.setPoincod(BigDecimal.ONE);
-        entBL.setPointot(BigDecimal.valueOf(0,00));
-        entBL.setPrioreg(BigDecimal.ZERO);
-        entBL.setTvatie("0");
-        entBL.setStlgtgamcod("");
-        entBL.setDtflg(BigDecimal.ONE);
-        entBL.setSynchrofl(BigDecimal.ONE);
-        entBL.setIcpfl(BigDecimal.ONE);
-        entBL.setLieuinct("");
-        entBL.setPorfrcod(BigDecimal.ONE);
-        entBL.setPorfrval(BigDecimal.ZERO);
-        entBL.setTransicod("");
-        entBL.setTvablcd3("");
-        entBL.setCeatraitefl(BigDecimal.ZERO);
-        entBL.setSitecod("");
-        entBL.setUpDemandeur(String.format("%-20s", currentUsername.toUpperCase()));
-        entBL.setUpDaterecuperation(null);
-        entBL.setBexno(BigDecimal.ZERO);
-        entBL.setBlqfl(BigDecimal.ONE);
-        entBL.setConfirmationfl(BigDecimal.ZERO);
-        entBL.setTaxcplffl(BigDecimal.ONE);
-        entBL.setTaxsfvfl(BigDecimal.ONE);
-        entBL.setTvaautoliqfl(BigDecimal.ONE);
-        entBL.setUnlogcod(BigDecimal.ONE);
-        entBL.setUnlogtot(BigDecimal.valueOf(0,00));
-        entBL.setUntyp("");
-        entBL.setValfindt(null);
-        entBL.setVersiondevisno(BigDecimal.ZERO);
-        entBL.setVersiondevisoripino(BigDecimal.ZERO);
-        entBL.setVersiondevisoriprefpino("");
-        entBL.setBprelcod(BigDecimal.ZERO);
-        entBL.setCatpicod("");
-        entBL.setCircuitvalidationblfl(BigDecimal.ZERO);
-        entBL.setCircuitvalidationfctfl(BigDecimal.ZERO);
-        entBL.setCondexp("");
-        entBL.setEtablno(" ");
-        entBL.setFraisappcod("");
-        entBL.setGouvfacblqfl(BigDecimal.ONE);
-        entBL.setIndiceno(BigDecimal.ZERO);
-        entBL.setModeexp("");
-        entBL.setMotif("");
-        entBL.setPiecedt(null);
-        entBL.setPrefsitno("");
-        entBL.setRemseuilfl(BigDecimal.ONE);
-        entBL.setSitno(BigDecimal.ZERO);
-        entBL.setTransitfl(BigDecimal.ZERO);
-        entBL.setAcomptetyp(BigDecimal.ZERO);
-        entBL.setBidon(BigDecimal.ZERO);
-        entBL.setBpjrnb(BigDecimal.ZERO);
-        entBL.setPaiementtyp(BigDecimal.ZERO);
-        entBL.setResjrnb(BigDecimal.ZERO);
-        entBL.setStnfl(BigDecimal.ZERO);
-        entBL.setFano(BigDecimal.ZERO);
-        entBL.setPreffano("");
-        entBL.setReglimmfl(BigDecimal.ONE);
-        entBL.setTiersfact("");
-        entBL.setBtfullpino("0");
-        entBL.setBtpino(BigDecimal.ZERO);
-        entBL.setBtprefpino("");
-        entBL.setBtretourfl(BigDecimal.ZERO);
-        entBL.setBtstatus(BigDecimal.ZERO);
-
-
-
-
-
-
-
-        return entBL;
     }
 
-    /**
-     * Créer une ligne MOUV dans Divalto (pour réception)
-     */
+// ========================================================================
+// ACTION 3 : AJOUTER CETTE MÉTHODE SÉCURISÉE POUR LE PINO
+// ========================================================================
+
+    private BigDecimal getNextPinoSecurise() {
+        try {
+            String sql = "SELECT MAX(PINO) FROM ENT WHERE DOS='1'";
+            Query query = divaltoEntityManager.createNativeQuery(sql);
+            Object result = query.getSingleResult();
+
+            BigDecimal maxPino = result != null ? new BigDecimal(result.toString()) : new BigDecimal("50000");
+            BigDecimal nouveauPino = maxPino.add(BigDecimal.ONE);
+
+            // ⭐ VALIDATION CRITIQUE : Vérifier la longueur ⭐
+            String pinoStr = nouveauPino.toString();
+            if (pinoStr.length() > 10) {  // Adapter selon votre contrainte DB
+                throw new RuntimeException("PINO généré trop long: " + pinoStr + " (" + pinoStr.length() + " chiffres)");
+            }
+
+            System.out.println("🔢 PINO sécurisé généré: " + nouveauPino + " (longueur: " + pinoStr.length() + ")");
+            return nouveauPino;
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur génération PINO sécurisé: " + e.getMessage());
+            throw new RuntimeException("Impossible de générer un PINO valide", e);
+        }
+    }
+
     @Override
     public MOUV creerLigneMouv(LigneReception ligne, ENT entBL,
                                String currentUsername, int ligneNumber) {
-        MOUV mouv = new MOUV();
 
-        // ID sera généré automatiquement
-        // mouv.setMouvId() - auto-generated
-
-        // ENRNO - Numéro d'enregistrement
-        mouv.setEnrno(BigDecimal.valueOf(ligne.getEnrno()));
-
-        // TICOD - Type de mouvement
-        mouv.setTicod("F");
-
-        // DOS - Dossier
-        mouv.setDos("1");
-
-        // ETB - Établissement
-        mouv.setEtb(entBL != null && entBL.getEtb() != null ? entBL.getEtb() : "948");
-
-        // Codes établissement (CE1-CEF)
-        mouv.setCe1("C");
-        mouv.setCe2("1");
-        mouv.setCe3("1");
-        mouv.setCe4("");
-        mouv.setCe5("");
-        mouv.setCe6("1");
-        mouv.setCe7("1");
-        mouv.setCe8(" ");
-        mouv.setCe9("1");
-        mouv.setCea(" ");
-        mouv.setCeb(" ");
-        mouv.setCec(" ");
-        mouv.setCed(" ");
-        mouv.setCee(" ");
-        mouv.setCef(" ");
-
-        // DEPO - Dépôt
-        mouv.setDepo(entBL.getDepo() != null ? entBL.getDepo() : "");
-
-        // Données devis (DV)
-        mouv.setPrefdvno("");
-        mouv.setDvno(BigDecimal.ZERO);
-        mouv.setDvdt(null);
-        mouv.setDvlg(BigDecimal.ZERO);
-        mouv.setDvslg(BigDecimal.ZERO);
-
-        // PICOD - Code pièce
-        mouv.setPicod(BigDecimal.valueOf(3));
-
-        // REF - Référence article
-        mouv.setRef(ligne.getArticle() != null ? ligne.getArticle() : "");
-
-        // DVCE4
-        mouv.setDvce4("");
-
-        // PREFCDNO
-        mouv.setPrefcdno("");
-
-        // SREF - Sous-références
-        mouv.setSref1(ligne.getSref1() != null ? ligne.getSref1() : "");
-        mouv.setSref2(ligne.getSref2() != null ? ligne.getSref2() : "");
-
-        // TIERS - Code tiers
-        mouv.setTiers(entBL.getTiers());
-
-
-
-        mouv.setRem0001(BigDecimal.valueOf(0,00));
-        mouv.setRem0002(BigDecimal.valueOf(0,00));
-        mouv.setRem0003(BigDecimal.valueOf(0,00));
-
-        // Données BL (Bon de Livraison)
-        mouv.setBlno( entBL.getPino());
-        mouv.setBldt(entBL.getPidt());
-
-
-
-        mouv.setFano(BigDecimal.ZERO);
-        mouv.setFadt(null);
-
-        // Données commande (CD)
-        mouv.setCdno(BigDecimal.valueOf(ligne.getCommande()));
-        mouv.setCddt( null);
-
-        // OP - Opérateur
-        mouv.setOp("F");
-
-        // DEV - Devise
-        mouv.setDev("MAD");
-
-        // Utilisateurs
-        mouv.setUsercr(currentUsername);
-        mouv.setUsermo(currentUsername);
-
-        // PROJET
-        mouv.setProjet(entBL != null && entBL.getProjet() != null ? entBL.getProjet() : "");
-
-        // DES - Désignation
-        mouv.setDes(ligne.getDeseignation() != null ? ligne.getDeseignation() : "");
-
-
-
-
-
-
-        // MARCHE
-        mouv.setMarche(entBL != null && entBL.getMarche() != null ? entBL.getMarche() : "");
-
-        // Dates de création et modification
-        LocalDateTime now = LocalDateTime.now();
-        mouv.setUsercrdh(now);
-        mouv.setUsermodh(now);
-
-        mouv.setStatus(BigDecimal.valueOf(2));
-
-        mouv.setBlqte(ligne.getQte() != null ? ligne.getQte() : BigDecimal.ZERO);
-
-
-        // Unités
-        mouv.setRefun(ligne.getUnite() != null ? ligne.getUnite() : "UN");
-        mouv.setVenun(ligne.getUnite() != null ? ligne.getUnite() : "UN");
-
-        // Prix
-        mouv.setPub(BigDecimal.ZERO);
-        mouv.setPpar( BigDecimal.ZERO);
-
-
-
-        // Montants
-   /*     BigDecimal quantite = ligne.getQuantiteRecue() != null ? ligne.getQuantiteRecue() : BigDecimal.ZERO;
-        BigDecimal prix = ligne.getPrixUnitaire() != null ? ligne.getPrixUnitaire() : BigDecimal.ZERO;
-        BigDecimal montantHT = quantite.multiply(new BigDecimal(999.99));*/
-        BigDecimal montantHT = new BigDecimal(999.99);
-
-
-        mouv.setRemmt(BigDecimal.ZERO);
-
-
-        // Colonnes techniques et administratives
-        mouv.setCenote(BigDecimal.valueOf(1));
-        mouv.setCmptotmt(montantHT);
-        mouv.setCoecod("");
-        mouv.setCofamr("");
-        mouv.setCofamv0001("");
-        mouv.setCofamv0002("");
-        mouv.setCofamv0003("");
-
-        // Commissions et compensations
-        mouv.setCommt0001(BigDecimal.ZERO);
-        mouv.setCommt0002(BigDecimal.ZERO);
-        mouv.setCommt0003(BigDecimal.ZERO);
-        mouv.setComp0001(BigDecimal.ZERO);
-        mouv.setComp0002(BigDecimal.ZERO);
-        mouv.setComp0003(BigDecimal.ZERO);
-
-        // Indices et codes
-        mouv.setAfrindice("");
-        mouv.setAppremmt(BigDecimal.ZERO);
-        mouv.setAppremmtun(BigDecimal.ZERO);
-        mouv.setAvenant("");
-
-        // Axes analytiques
-        mouv.setAxe0001("");
-        mouv.setAxe0002(entBL != null && entBL.getProjet() != null ? entBL.getProjet() : "");
-        mouv.setAxe0003("");
-        mouv.setAxe0004("");
-
-        // Numéros et références
-        mouv.setBesoinno(BigDecimal.ZERO);
-        mouv.setBlasenrno(BigDecimal.ZERO);
-        mouv.setBlce4("1");
-        mouv.setBlenrno(BigDecimal.ZERO);
-        mouv.setBllg(BigDecimal.valueOf(ligneNumber));
-        mouv.setBlslg(BigDecimal.ZERO);
-
-        // Dates et bons de production
-        mouv.setBpdt(null);
-        mouv.setBpligcompfl(BigDecimal.ZERO);
-        mouv.setBpno(BigDecimal.ZERO);
-
-        // Flags et options
-        mouv.setCadeaufl(BigDecimal.ZERO);
-        mouv.setCdnopere(BigDecimal.ZERO);
-        mouv.setCdqte(BigDecimal.ZERO);
-
-        // Configurateur
-        mouv.setConfigurateurlino(BigDecimal.ZERO);
-        mouv.setConfigurateurmonostatus(BigDecimal.ZERO);
-        mouv.setConfigurateurmultistatus(BigDecimal.ZERO);
-        mouv.setConfigurateurref("");
-        mouv.setConfigurateursref1("");
-        mouv.setConfigurateursref2("");
-
-        // Contrats et comptabilité
-        mouv.setContratcod("");
-        mouv.setCptv("");
-        mouv.setCrtotmt(montantHT);
-        mouv.setCtmfl(BigDecimal.valueOf(1));
-
-        // Codes et références
-        mouv.setDeccod(BigDecimal.valueOf(1));
-        mouv.setDepoorig("");
-        mouv.setDtrenrno(BigDecimal.ZERO);
-        mouv.setDtrgrp(BigDecimal.ZERO);
-        mouv.setDtrtype(BigDecimal.ZERO);
-        mouv.setDvenrno(BigDecimal.ZERO);
-        mouv.setDvqte(BigDecimal.ZERO);
-
-        // Codes divers
-        mouv.setEdcod("");
-        mouv.setElemno(BigDecimal.ZERO);
-        mouv.setEmbqte(BigDecimal.ZERO);
-        mouv.setEmbun("");
-
-        // ENRNO collections
-        mouv.setEnrnoc0001(BigDecimal.ZERO);
-        mouv.setEnrnoc0002(BigDecimal.ZERO);
-        mouv.setEnrnoc0003(BigDecimal.ZERO);
-        mouv.setEnrnoc0004(BigDecimal.ZERO);
-        mouv.setEnrnocad(BigDecimal.ZERO);
-        mouv.setEnrnop0001(BigDecimal.ZERO);
-        mouv.setEnrnop0002(BigDecimal.ZERO);
-        mouv.setEnrnop0003(BigDecimal.ZERO);
-        mouv.setEnrnop0004(BigDecimal.ZERO);
-
-        // Codes facture
-        mouv.setFace4(" ");
-        mouv.setFalg(BigDecimal.ZERO);
-        mouv.setFamontgim(BigDecimal.ZERO);
-        mouv.setFapubgim(BigDecimal.ZERO);
-        mouv.setFaqte(BigDecimal.ZERO);
-        mouv.setFaslg(BigDecimal.ZERO);
-
-        // Divers
-        // Divers
-        mouv.setFillersens(BigDecimal.ZERO);
-        mouv.setFoufadtgim(null);
-        mouv.setFoufanogim("");
-        mouv.setFoufaqtegim(BigDecimal.ZERO);
-
-        // Frais
-        mouv.setFraisappcod("");
-        mouv.setFraisfl(BigDecimal.ZERO);
-        mouv.setFraisimpactflg(BigDecimal.ZERO);
-        mouv.setFraismt(BigDecimal.ZERO);
-        mouv.setFraismtgim(BigDecimal.ZERO);
-        mouv.setFraisvalidtyp(BigDecimal.ZERO);
-
-        // Dates et codes
-        mouv.setGadt(null);
-        mouv.setGamseq("");
-        mouv.setGimcod("");
-        mouv.setGpafl(BigDecimal.ZERO);
-        mouv.setGratuitfl(BigDecimal.ZERO);
-
-        // Codes IAG
-        mouv.setIagcdenrno(BigDecimal.ZERO);
-        mouv.setIagfluxlien("");
-        mouv.setIcpfl(BigDecimal.ZERO);
-        mouv.setLigne(BigDecimal.valueOf(0));
-        mouv.setLivdirectfl(BigDecimal.ZERO);
-
-        // Montants et motifs
-        mouv.setMont(montantHT);
-        mouv.setMotif("");
-        mouv.setMotifsolde("");
-        mouv.setMvcod(BigDecimal.valueOf(2));
-        mouv.setMvstat(BigDecimal.valueOf(1));
-        mouv.setNote(BigDecimal.ZERO);
-
-        // Numéros d'offre et options
-        mouv.setOfno(BigDecimal.ZERO);
-        mouv.setOptionfl(BigDecimal.ONE);
-        mouv.setOptionvalidefl(BigDecimal.ONE);
-        mouv.setPaforf(BigDecimal.ONE);
-        mouv.setPagcod("");
-        mouv.setPanachefl(BigDecimal.ONE);
-        mouv.setPatotmt(BigDecimal.valueOf(0.000000));
-
-        // Périodes
-        mouv.setPeriodeddt(null);
-        mouv.setPeriodefdt(null);
-        mouv.setPfcno(BigDecimal.ZERO);
-        mouv.setPosition("");
-
-        // Préfixes
-        mouv.setPrefblno("");
-        mouv.setPrefcdnopere("");
-        mouv.setPreffano("");
-        mouv.setPrefofno("");
-
-        // Quantités programme
-        mouv.setPrgqte(BigDecimal.ZERO);
-        mouv.setPrgrefqte(BigDecimal.ZERO);
-        mouv.setPriocod(BigDecimal.ZERO);
-        mouv.setPrixspecialfl(BigDecimal.ZERO);
-
-        // Codes promotion
-        mouv.setPromoremcod("");
-        mouv.setPromotacod("");
-        mouv.setPromotyp(BigDecimal.valueOf(1));
-        mouv.setPubtyp(BigDecimal.valueOf(1));
-        mouv.setPubun(ligne.getUnite() != null ? ligne.getUnite() : "UN");
-
-        // Prix et statuts
-        mouv.setPunetori(BigDecimal.ZERO);
-        mouv.setPustat(BigDecimal.valueOf(1));
-        mouv.setPvcod(BigDecimal.valueOf(1));
-
-        // Quantités types
-        mouv.setQte1(BigDecimal.ZERO);
-        mouv.setQte2(BigDecimal.ZERO);
-        mouv.setQte3(BigDecimal.ZERO);
-        mouv.setQtetyp(BigDecimal.valueOf(1));
-
-        // Codes divers
-        mouv.setRebucod("");
-        mouv.setRecptno(BigDecimal.ZERO);
-        mouv.setRefamr("");
-        mouv.setRefamrx("");
-        mouv.setReffo("");
-        mouv.setRefqte(BigDecimal.ZERO);
-        mouv.setReglecod("");
-        mouv.setCdce4(BigDecimal.valueOf(8));
-         mouv.setCdenrno(BigDecimal.ZERO);
-        // Codes relation
-        mouv.setRelcod0001(BigDecimal.ZERO);
-        mouv.setRelcod0002(BigDecimal.valueOf(2));
-        mouv.setRelcod0003(BigDecimal.valueOf(2));
-mouv.setArtind("");
-        // Remises détaillées
-
-
-
-        mouv.setRemcod("");
-        mouv.setRemcodcad("");
-
-        // Remboursements
-        mouv.setRempiemt0001(BigDecimal.ZERO);
-        mouv.setRempiemt0002(BigDecimal.ZERO);
-        mouv.setRempiemt0003(BigDecimal.ZERO);
-        mouv.setRempiemt0004(BigDecimal.ZERO);
-        mouv.setRgpenrno(BigDecimal.ZERO);
-        mouv.setSens(BigDecimal.valueOf(1));
-        mouv.setSolderelfl(BigDecimal.ZERO);
-        mouv.setStres(BigDecimal.valueOf(1));
-        mouv.setSynchrofl(BigDecimal.ONE);
-
-        // Codes tarifs
-        mouv.setTacod("");
-        mouv.setTafamr("");
-        mouv.setTafamrx("");
-        mouv.setTicket(BigDecimal.ZERO);
-
-        // Tiers externes
-        mouv.setTiersexterne("");
-        mouv.setTiersfou2("");
-
-        // TVA
-        mouv.setTvaart("1");
-        mouv.setTvanassujettiefl(BigDecimal.valueOf(1));
-
-        // Textes
-        mouv.setTxtcod(BigDecimal.ZERO);
-        mouv.setTxtedcod("");
-        mouv.setTxtnote(BigDecimal.ZERO);
-
-        // Type d'unité
-        mouv.setUntyp("");
-
-
-        mouv.setArtind("");
-
-        mouv.setCdlg(BigDecimal.ZERO);
-        mouv.setCdslg(BigDecimal.ZERO);
-        mouv.setConfurateurartind("");
-        mouv.setPcod0001(BigDecimal.valueOf(4));
-        mouv.setPcod0002(BigDecimal.valueOf(4));
-        mouv.setPcod0003(BigDecimal.valueOf(2));
-        mouv.setPcod0004(BigDecimal.valueOf(2));
-        mouv.setPcod0005(BigDecimal.valueOf(2));
-        mouv.setPcod0006(BigDecimal.valueOf(4));
-        mouv.setRempiepart0001(BigDecimal.ZERO);
-        mouv.setRempiepart0002(BigDecimal.ZERO);
-        mouv.setRempiepart0003(BigDecimal.ZERO);
-        mouv.setRempiepart0004(BigDecimal.ZERO);
-        mouv.setRemtyp0001(BigDecimal.ONE)  ;
-        mouv.setRemtyp0002(BigDecimal.ONE);
-        mouv.setRemtyp0003(BigDecimal.ONE)	;
-        mouv.setRepr0001("");
-        mouv.setRepr0002("");
-        mouv.setRepr0003("");
-        mouv.setIaglientyp(BigDecimal.ZERO);
-
-
-
-        return mouv;
+        return null;
     }
 
     /**
@@ -866,7 +499,7 @@ mouv.setArtind("");
     public MJoint creerPieceJointe(KdnFile fichier, ENT entBL,
                                    String currentUsername, BigDecimal jointNumber) {
         MJoint mJoint = new MJoint();
-
+System.out.println("jointNumber : "+jointNumber);
         // ✅ Utiliser le numéro JOINT passé en paramètre
         mJoint.setJoint(jointNumber);
 
@@ -908,7 +541,7 @@ mouv.setArtind("");
         String paddedUsername = String.format("%-20s", currentUsername.toUpperCase());
         mJoint.setUsercr(paddedUsername);
         mJoint.setUsermo(paddedUsername);
-
+        System.out.println("mJoint.getJoint() : "+mJoint.getJoint());
         return mJoint;
     }
 
@@ -959,7 +592,7 @@ mouv.setArtind("");
     /**
      * Extraire le dépôt du code de commande (3 derniers chiffres)
      */
-    private String extraireDepotDuCodeCommande(Integer commandeId) {
+   /* private String extraireDepotDuCodeCommande(Integer commandeId) {
         try {
             // Récupérer le code affaire depuis la commande
             String sql = "SELECT TOP 1 PROJET FROM ENT WHERE PICOD=2 AND DOS='1' AND TICOD='F' " +
@@ -989,5 +622,113 @@ mouv.setArtind("");
             log.error("Erreur lors de l'extraction du dépôt: {}", e.getMessage());
             return "1";
         }
+    }*/
+    private void mettreAJourEntetesBC_BL(List<LigneReception> lignes, BigDecimal pinoCommande, ENT entBL) {
+        // Récupérer l'entête BC
+        ENT enteteBC = entRepository.findByPinoAndPicod(pinoCommande, BigDecimal.valueOf(2));
+
+        if (enteteBC != null) {
+            // Calculer montant réception
+            BigDecimal montantReception = calculerMontantReceptionDepuisMouv(lignes);
+
+            // ⭐ CALCULER LE TAUX TVA DEPUIS LE BC ⭐
+            BigDecimal tauxTva = BigDecimal.ONE;
+            if (enteteBC.getHtmt() != null && enteteBC.getHtmt().compareTo(BigDecimal.ZERO) != 0
+                    && enteteBC.getTtcmt() != null) {
+                tauxTva = enteteBC.getTtcmt().divide(enteteBC.getHtmt(), 4, BigDecimal.ROUND_HALF_UP);
+            }
+
+            // Mettre à jour BC (soustraire)
+            BigDecimal Montant = enteteBC.getHtmt().subtract(montantReception);
+            enteteBC.setTtcmt(Montant.multiply(tauxTva));
+            enteteBC.setHtmt(Montant);
+            enteteBC.setHtpdtmt(Montant);
+            entRepository.save(enteteBC);
+
+            // ⭐ METTRE À JOUR BL AVEC CALCULS CORRECTS ⭐
+            entBL.setHtmt(montantReception.setScale(2, RoundingMode.HALF_UP));
+            entBL.setHtpdtmt(montantReception.setScale(2, RoundingMode.HALF_UP));
+
+            // ⭐ FIX 1: TTCMT avec TVA ⭐
+            entBL.setTtcmt(montantReception.multiply(tauxTva).setScale(2, RoundingMode.HALF_UP));
+
+            // ⭐ FIX 2: REFNB (nombre de références distinctes) ⭐
+            long refnb = lignes.stream()
+                    .map(LigneReception::getArticle)
+                    .filter(article -> article != null && !article.trim().isEmpty())
+                    .distinct()
+                    .count();
+            entBL.setRefnb(BigDecimal.valueOf(refnb).setScale(0, RoundingMode.DOWN));
+
+            // ⭐ FIX 3: REMPIETOT (calculé proportionnellement du BC) ⭐
+            BigDecimal rempietot = BigDecimal.ZERO;
+            if (enteteBC.getHtmt() != null && enteteBC.getHtmt().compareTo(BigDecimal.ZERO) != 0
+                    && enteteBC.getRempietot() != null) {
+                // Calcul proportionnel : (montant_réception / montant_BC_original) * remise_BC_originale
+                BigDecimal montantBCOriginal = enteteBC.getHtmt().add(montantReception); // BC avant soustraction
+                BigDecimal ratio = montantReception.divide(montantBCOriginal, 4, BigDecimal.ROUND_HALF_UP);
+                rempietot = enteteBC.getRempietot().multiply(ratio);
+            }
+            entBL.setRempietot(rempietot.setScale(2, BigDecimal.ROUND_HALF_UP));
+
+            entRepository.save(entBL);
+
+            System.out.println("✅ BC updated: " + enteteBC.getHtmt() + " | BL created: " + montantReception);
+            System.out.println("✅ BL TTCMT: " + entBL.getTtcmt() + " (taux TVA: " + tauxTva + ")");
+            System.out.println("✅ BL REFNB: " + entBL.getRefnb() + " | REMPIETOT: " + entBL.getRempietot());
+        }
     }
+
+    private BigDecimal calculerMontantReceptionDepuisMouv(List<LigneReception> lignes) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (LigneReception ligne : lignes) {
+            Optional<MOUV> mouvOpt = mouvRepository.findLigneCommandeByPinoAndRef(
+                    BigDecimal.valueOf(ligne.getCommande()), ligne.getArticle());
+            if (mouvOpt.isPresent()) {
+                BigDecimal prix = mouvOpt.get().getPub();
+                BigDecimal qte = ligne.getQte();
+                total = total.add(prix.multiply(qte));
+            }
+        }
+        return total;
+    }
+    private void mettreAJourChampsCalcules(ENT entBL, List<LigneReception> lignes) {
+        // Calculer REFNB (nombre de références distinctes)
+        long refnb = lignes.stream()
+                .map(LigneReception::getArticle)
+                .distinct()
+                .count();
+        entBL.setRefnb(BigDecimal.valueOf(refnb).setScale(0, RoundingMode.DOWN));
+
+        // Calculer REMPIETOT selon votre logique métier
+        BigDecimal rempietot = BigDecimal.ZERO;
+        for (LigneReception ligne : lignes) {
+            // Ajouter votre logique de calcul de remise
+            // rempietot = rempietot.add(...);
+        }
+        entBL.setRempietot(rempietot);
+
+        // Sauvegarder les modifications
+        entRepository.save(entBL);
+
+        System.out.println("✅ Champs calculés mis à jour - REFNB: " + refnb + ", REMPIETOT: " + rempietot);
+    }
+    private BigDecimal getNextPino() {
+        try {
+            String sql = "SELECT MAX(PINO) FROM ENT WHERE DOS='1'";
+            Query query = divaltoEntityManager.createNativeQuery(sql);
+            Object result = query.getSingleResult();
+
+            if (result != null) {
+                BigDecimal maxPino = new BigDecimal(result.toString());
+                return maxPino.add(BigDecimal.ONE);
+            } else {
+                return new BigDecimal("50000"); // Valeur de départ
+            }
+        } catch (Exception e) {
+            log.error("Erreur lors de la récupération du dernier PINO: {}", e.getMessage());
+            return new BigDecimal("50000");
+        }
+    }
+
 }

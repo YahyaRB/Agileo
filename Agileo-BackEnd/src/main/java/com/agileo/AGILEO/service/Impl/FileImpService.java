@@ -1,5 +1,6 @@
 package com.agileo.AGILEO.service.Impl;
 
+import com.agileo.AGILEO.service.SmbStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.agileo.AGILEO.Dtos.request.FileUploadRequestDTO;
@@ -18,10 +19,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.*;
+
 import jakarta.annotation.PostConstruct;
-import java.io.IOException;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -43,6 +44,7 @@ public class FileImpService implements FileService {
     private final KdnsAccessorRepository kdnsAccessorRepository;
     private final UserServiceImpl userService;
     private final ReceptionRepository receptionRepository;
+    private final SmbStorageService smb;
 
     @Value("${app.path.globalVariable}")
     private String ROOT_DIR;
@@ -65,65 +67,77 @@ public class FileImpService implements FileService {
                           DemandeAchatRepository demandeAchatRepository,
                           KdnsAccessorRepository kdnsAccessorRepository,
                           UserServiceImpl userService,
-                          ReceptionRepository receptionRepository) {
+                          ReceptionRepository receptionRepository, SmbStorageService smb) {
         this.fileRepository = fileRepository;
         this.fileGroupRepository = fileGroupRepository;
         this.demandeAchatRepository = demandeAchatRepository;
         this.kdnsAccessorRepository = kdnsAccessorRepository;
         this.userService = userService;
         this.receptionRepository = receptionRepository;
+        this.smb = smb;
     }
 
     @PostConstruct
     public void initializeDirectories() {
         try {
-            log.info("=== CONFIGURATION FICHIERS SERVEUR DISTANT ===");
-            log.info("Chemin configuré: {}", ROOT_DIR);
+            log.info("=== CONFIGURATION FICHIERS SMB (Mode Direct) ===");
+            log.info("Mode: Accès SMB direct via SMBJ (pas de montage local requis)");
+            log.info("Serveur SMB: {}", smb != null ? "Configuré" : "NON CONFIGURÉ");
 
-            // Tentative d'authentification si credentials fournis
-            if (remoteUsername != null && !remoteUsername.isEmpty()) {
-                log.info("Credentials détectés, tentative d'authentification...");
-                authenticateToRemoteServer();
-            } else {
-                log.warn("Aucun credential configuré - accès en tant qu'utilisateur Windows courant");
+            // Vérifier que le service SMB est bien injecté
+            if (smb == null) {
+                log.error("❌ SmbStorageService n'est pas injecté!");
+                throw new RuntimeException("Service SMB non disponible");
             }
 
-            // Initialiser le chemin
-            globalStorageDir = Paths.get(ROOT_DIR).toAbsolutePath().normalize();
-            log.info("Répertoire résolu: {}", globalStorageDir.toString());
+            // Test de connexion SMB
+            log.info("Test de connexion au serveur SMB...");
+            testSmbConnectionAsync();
 
-            // Vérifier l'existence du répertoire
-            if (!Files.exists(globalStorageDir)) {
-                log.warn("Le répertoire n'existe pas, tentative de création...");
-                try {
-                    Files.createDirectories(globalStorageDir);
-                    log.info("Répertoire créé avec succès");
-                } catch (Exception e) {
-                    log.error("Impossible de créer le répertoire: {}", e.getMessage());
-                    throw new RuntimeException("Impossible de créer le répertoire distant: " + e.getMessage());
+            // Initialiser un répertoire local temporaire (fallback uniquement)
+            if (ROOT_DIR != null && !ROOT_DIR.isEmpty() && !ROOT_DIR.startsWith("\\\\")) {
+                globalStorageDir = Paths.get(ROOT_DIR).toAbsolutePath().normalize();
+                log.info("Répertoire fallback local: {}", globalStorageDir.toString());
+
+                if (!Files.exists(globalStorageDir)) {
+                    try {
+                        Files.createDirectories(globalStorageDir);
+                        log.info("✅ Répertoire fallback créé");
+                    } catch (Exception e) {
+                        log.warn("⚠️ Impossible de créer le répertoire fallback (non critique)");
+                    }
                 }
+            } else {
+                log.info("Mode SMB pur - Pas de répertoire local (normal)");
             }
 
-            // Test d'accès (non bloquant)
-            testRemoteAccessAsync();
-
-            log.info("Initialisation terminée (vérification d'accès en cours...)");
+            log.info("✅ Initialisation terminée - Mode SMB Direct");
             log.info("=============================================");
 
         } catch (Exception e) {
-            log.error("ERREUR lors de l'initialisation: {}", e.getMessage());
-            log.warn("L'application démarre en mode dégradé");
-            // Fallback sur un répertoire local
-            globalStorageDir = Paths.get(System.getProperty("user.home"), "uploads-temp");
-            log.warn("Utilisation du répertoire de secours: {}", globalStorageDir);
+            log.error("⚠️ Erreur lors de l'initialisation: {}", e.getMessage());
+            log.warn("L'application démarre mais les uploads peuvent échouer");
+            log.warn("Vérifiez la configuration SMB dans application-dev.properties");
         }
     }
 
     /**
      * Authentification au serveur distant Windows via net use
      */
+    /**
+     * Authentification au serveur distant Windows via net use
+     */
     private void authenticateToRemoteServer() {
         try {
+            // Détecter l'OS
+            String os = System.getProperty("os.name").toLowerCase();
+
+            if (os.contains("linux") || os.contains("unix")) {
+                log.info("OS Linux détecté - L'authentification doit être faite au niveau système (mount)");
+                log.info("Le partage doit être monté avec: sudo mount -t cifs //server/share /mnt/divalto -o username=...,password=...");
+                return; // Pas d'authentification via Spring Boot sur Linux
+            }
+
             log.info("Tentative d'authentification au serveur distant...");
 
             // Construction de la commande net use
@@ -179,7 +193,7 @@ public class FileImpService implements FileService {
 
         } catch (Exception e) {
             log.error("Erreur lors de l'authentification: {}", e.getMessage());
-            log.warn("Poursuite avec les droits Windows actuels...");
+            log.warn("Poursuite avec les droits actuels...");
         }
     }
 
@@ -258,16 +272,12 @@ public class FileImpService implements FileService {
                 .orElseThrow(() -> new ResourceNotFoundException("Groupe de fichiers introuvable: " + groupId));
         return mapFileGroupToResponseDto(group);
     }
-
     // ==================== GESTION DES FICHIERS ====================
 
     @Override
     public FileResponseDTO uploadFile(MultipartFile file, Integer groupId, String description, String currentUsername) {
         try {
-            // Vérifier l'accès au serveur distant
-            ensureRemoteAccess();
-
-            log.info("=== DÉBUT UPLOAD FICHIER ===");
+            log.info("=== DÉBUT UPLOAD FICHIER (SMB) ===");
             log.info("Fichier: {}", file.getOriginalFilename());
             log.info("Taille: {} bytes", file.getSize());
             log.info("Groupe ID: {}", groupId);
@@ -277,15 +287,11 @@ public class FileImpService implements FileService {
             KdnFileGroup group = fileGroupRepository.findById(groupId)
                     .orElseThrow(() -> new ResourceNotFoundException("Groupe de fichiers introuvable: " + groupId));
 
-            String hash = calculateFileHash(file.getBytes());
-            Optional<KdnFile> existingFile = fileRepository.findByHashAndSysState(hash, 1);
-            if (existingFile.isPresent()) {
-                throw new BadRequestException("Ce fichier existe déjà dans le système");
-            }
-
             String originalFilename = file.getOriginalFilename();
             String extension = getFileExtension(originalFilename);
             String name = getFileNameWithoutExtension(originalFilename);
+
+            String hash = calculateFileHash(file.getBytes());
 
             Integer userId = getUserIdFromUsername(currentUsername);
             KdnFile kdnFile = new KdnFile();
@@ -301,32 +307,32 @@ public class FileImpService implements FileService {
             kdnFile.setSysState(1);
             kdnFile.setNbOpen(0);
             kdnFile.setDocumentType(1);
-
             LocalDateTime now = LocalDateTime.now();
             kdnFile.setSysCreationDate(now);
             kdnFile.setSysModificationDate(now);
 
             KdnFile savedFile = fileRepository.save(kdnFile);
 
-            String finalFileName = generateFileName(groupId, savedFile.getFileId(), extension);
-            String savedFilePath = saveFileToGlobalStorage(file, finalFileName);
+            // ---- ÉCRITURE SUR LE PARTAGE SMB ----
+            // Arbo pro : basePath/kdn/<groupId>/<nom_fichier>
+            String subdir = "kdn/" + group.getGroupId();
+            String relativePath = smb.upload(file, subdir); // renvoie ex: "kdn/1234/mon.pdf"
 
-            savedFile.setFtpPath(finalFileName);
-            savedFile.setTempPath(finalFileName);
+            savedFile.setFtpPath(relativePath);
+            savedFile.setTempPath(relativePath);
             savedFile.setSysModificationDate(LocalDateTime.now());
             savedFile = fileRepository.save(savedFile);
 
-            log.info("Fichier sauvé: ID={}, Nom={}", savedFile.getFileId(), finalFileName);
-            log.info("=== FIN UPLOAD FICHIER ===");
+            log.info("Fichier SMB sauvé: ID={}, RelPath={}", savedFile.getFileId(), relativePath);
+            log.info("=== FIN UPLOAD FICHIER (SMB) ===");
 
             return mapFileToResponseDto(savedFile);
 
         } catch (IOException e) {
             log.error("Erreur IOException: {}", e.getMessage());
-            throw new BadRequestException("Erreur d'accès au serveur distant: " + e.getMessage());
+            throw new BadRequestException("Erreur d'accès SMB: " + e.getMessage());
         } catch (Exception e) {
-            log.error("Erreur générale: {}", e.getMessage());
-            e.printStackTrace();
+            log.error("Erreur générale: {}", e.getMessage(), e);
             throw new BadRequestException("Erreur lors de l'upload du fichier: " + e.getMessage());
         }
     }
@@ -346,6 +352,7 @@ public class FileImpService implements FileService {
                 .collect(Collectors.toList());
     }
 
+
     @Override
     public ResponseMessage deleteFile(Integer fileId, String currentUsername) {
         try {
@@ -361,7 +368,7 @@ public class FileImpService implements FileService {
             try {
                 deletePhysicalFile(file);
             } catch (Exception e) {
-                log.warn("Impossible de supprimer le fichier physique: {}", e.getMessage());
+                log.warn("Impossible de supprimer le fichier distant: {}", e.getMessage());
             }
 
             log.info("Fichier supprimé avec succès: {}", fileId);
@@ -374,14 +381,16 @@ public class FileImpService implements FileService {
     }
 
     private void deletePhysicalFile(KdnFile file) throws IOException {
-        if (file.getFtpPath() != null && !file.getFtpPath().trim().isEmpty()) {
-            Path filePath = globalStorageDir.resolve(file.getFtpPath());
-            if (Files.exists(filePath)) {
-                Files.delete(filePath);
-                log.info("Fichier physique supprimé: {}", filePath);
-            }
+        String rel = (file.getFtpPath() != null && !file.getFtpPath().isBlank())
+                ? file.getFtpPath()
+                : file.getTempPath();
+
+        if (rel != null && !rel.isBlank()) {
+            boolean ok = smb.delete(rel);
+            log.info(ok ? "Fichier SMB supprimé: {}" : "Fichier SMB introuvable: {}", rel);
         }
     }
+
 
     @Override
     public byte[] downloadFile(Integer fileId, String currentUsername) {
@@ -389,29 +398,30 @@ public class FileImpService implements FileService {
                 .orElseThrow(() -> new ResourceNotFoundException("Fichier introuvable: " + fileId));
 
         try {
-            Path filePath = null;
+            String rel = (file.getFtpPath() != null && !file.getFtpPath().isBlank())
+                    ? file.getFtpPath()
+                    : file.getTempPath();
 
-            if (file.getFtpPath() != null && !file.getFtpPath().trim().isEmpty()) {
-                filePath = globalStorageDir.resolve(file.getFtpPath());
-            } else if (file.getTempPath() != null && !file.getTempPath().trim().isEmpty()) {
-                filePath = globalStorageDir.resolve(file.getTempPath());
+            if (rel == null || rel.isBlank()) {
+                throw new BadRequestException("Chemin de fichier introuvable (ftpPath/tempPath vides)");
             }
 
-            if (filePath == null || !Files.exists(filePath)) {
-                throw new BadRequestException("Fichier physique introuvable sur le disque: " +
-                        (filePath != null ? filePath.toString() : "chemin null"));
+            byte[] data;
+            try (InputStream in = smb.download(rel); ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+                in.transferTo(bos);
+                data = bos.toByteArray();
             }
 
             file.setNbOpen(file.getNbOpen() + 1);
             file.setSysModificationDate(LocalDateTime.now());
             fileRepository.save(file);
 
-            log.info("Téléchargement du fichier depuis: {}", filePath.toString());
-            return Files.readAllBytes(filePath);
+            log.info("Téléchargement via SMB depuis: {}", rel);
+            return data;
 
         } catch (IOException e) {
-            log.error("Erreur lors de la lecture du fichier: {}", e.getMessage());
-            throw new BadRequestException("Impossible de lire le fichier: " + e.getMessage());
+            log.error("Erreur SMB lors de la lecture: {}", e.getMessage());
+            throw new BadRequestException("Impossible de lire le fichier distant: " + e.getMessage());
         }
     }
 
@@ -457,10 +467,7 @@ public class FileImpService implements FileService {
     @Transactional
     public ResponseMessage attachFilesToDemandeAchat(Integer demandeAchatId, List<MultipartFile> files, String currentUsername) {
         try {
-            // Vérifier l'accès distant
-            ensureRemoteAccess();
-
-            log.info("=== DÉBUT UPLOAD FICHIERS DEMANDE VERS KDN_FILE ===");
+            log.info("=== DÉBUT UPLOAD FICHIERS DEMANDE VERS KDN_FILE (SMB) ===");
             log.info("Demande ID: {}", demandeAchatId);
             log.info("Nombre de fichiers: {}", files.size());
 
@@ -511,18 +518,40 @@ public class FileImpService implements FileService {
             List<String> uploadedFiles = new ArrayList<>();
             List<String> errors = new ArrayList<>();
 
-            for (MultipartFile file : files) {
+            for (MultipartFile f : files) {
                 try {
-                    validateFileForUpload(file);
-                    String description = "Pièce jointe pour demande " + demandeAchatId;
+                    validateFileForUpload(f);
 
-                    FileResponseDTO uploadedFile = uploadFile(file, groupId, description, currentUsername);
-                    uploadedFiles.add(uploadedFile.getFullFileName());
-                    log.info("Fichier uploadé avec succès vers KDN_FILE: {}", uploadedFile.getFullFileName());
+                    // Créer l’entrée KdnFile
+                    KdnFile kdnFile = new KdnFile();
+                    kdnFile.setGroupId(groupId);
+                    kdnFile.setName(getFileNameWithoutExtension(f.getOriginalFilename()));
+                    kdnFile.setExtension(getFileExtension(f.getOriginalFilename()));
+                    kdnFile.setSize((int) f.getSize());
+                    kdnFile.setStorageName("Public");
+                    kdnFile.setDocumentType(1);
+                    kdnFile.setSysCreationDate(LocalDateTime.now());
+                    Integer uid = getUserIdFromUsername(currentUsername);
+                    kdnFile.setSysCreatorId(uid);
+                    kdnFile.setSysModificationDate(LocalDateTime.now());
+                    kdnFile.setSysUserId(uid);
+                    kdnFile.setSysState(1);
+                    kdnFile.setNbOpen(0);
+
+                    KdnFile savedFile = fileRepository.save(kdnFile);
+
+                    // Écriture SMB : basePath/demandes/<demandeId>/<nom>
+                    String rel = smb.upload(f, null);
+                    savedFile.setFtpPath(rel);
+                    savedFile.setTempPath(rel);
+                    savedFile = fileRepository.save(savedFile);
+
+                    uploadedFiles.add(f.getOriginalFilename());
+                    log.info("✅ Fichier uploadé (SMB): {}", f.getOriginalFilename());
 
                 } catch (Exception e) {
-                    log.error("Erreur lors de l'upload du fichier {}: {}", file.getOriginalFilename(), e.getMessage());
-                    errors.add(String.format("Fichier '%s': %s", file.getOriginalFilename(), e.getMessage()));
+                    log.error("❌ Erreur upload fichier {}: {}", f.getOriginalFilename(), e.getMessage(), e);
+                    errors.add(String.format("Fichier '%s': %s", f.getOriginalFilename(), e.getMessage()));
                 }
             }
 
@@ -544,16 +573,14 @@ public class FileImpService implements FileService {
             int totalFichiers = fichiesExistants + uploadedFiles.size();
             messageBuilder.append(String.format("\nTotal: %d/%d fichiers pour cette demande", totalFichiers, MAX_FILES_PER_DEMANDE));
 
-            log.info("=== FIN UPLOAD FICHIERS DEMANDE VERS KDN_FILE ===");
+            log.info("=== FIN UPLOAD DEMANDE (SMB) ===");
             return new ResponseMessage(messageBuilder.toString());
 
-        } catch (IOException e) {
-            log.error("Erreur d'accès au serveur distant: {}", e.getMessage());
-            throw new BadRequestException("Impossible d'accéder au serveur distant. Vérifiez la connexion et les droits d'accès.");
+        } catch (BadRequestException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("Erreur générale lors de l'upload vers KDN_FILE: {}", e.getMessage());
-            e.printStackTrace();
-            throw new BadRequestException("Erreur lors de l'upload des fichiers vers KDN_FILE: " + e.getMessage());
+            log.error("Erreur générale lors de l'upload vers KDN_FILE (SMB): {}", e.getMessage(), e);
+            throw new BadRequestException("Erreur SMB lors de l'upload des fichiers: " + e.getMessage());
         }
     }
 
@@ -592,7 +619,7 @@ public class FileImpService implements FileService {
     @Transactional(rollbackFor = Exception.class)
     public ResponseMessage attachFilesToReception(Integer receptionId, List<MultipartFile> files, String currentUsername) {
         try {
-            log.info("=== DÉBUT attachFilesToReception ===");
+            log.info("=== DÉBUT attachFilesToReception (SMB) ===");
             log.info("Reception ID: {}", receptionId);
             log.info("Nombre de fichiers: {}", files != null ? files.size() : 0);
             log.info("Utilisateur: {}", currentUsername);
@@ -600,9 +627,6 @@ public class FileImpService implements FileService {
             if (files == null || files.isEmpty()) {
                 throw new BadRequestException("Aucun fichier fourni");
             }
-
-            // Vérifier l'accès distant
-            ensureRemoteAccess();
 
             // Récupérer la réception
             Reception reception = receptionRepository.findById(receptionId)
@@ -663,24 +687,25 @@ public class FileImpService implements FileService {
             List<String> errors = new ArrayList<>();
 
             for (int i = 0; i < files.size(); i++) {
-                MultipartFile file = files.get(i);
+                MultipartFile f = files.get(i);
                 try {
-                    log.info("Traitement fichier {}/{}: {}", i + 1, files.size(), file.getOriginalFilename());
+                    log.info("Traitement fichier {}/{}: {}", i + 1, files.size(), f.getOriginalFilename());
 
-                    validateFileForUpload(file);
+                    validateFileForUpload(f);
 
                     // Créer l'entrée KdnFile
                     KdnFile kdnFile = new KdnFile();
                     kdnFile.setGroupId(fileGroup.getGroupId());
-                    kdnFile.setName(getFileNameWithoutExtension(file.getOriginalFilename()));
-                    kdnFile.setExtension(getFileExtension(file.getOriginalFilename()));
-                    kdnFile.setSize((int) file.getSize());
+                    kdnFile.setName(getFileNameWithoutExtension(f.getOriginalFilename()));
+                    kdnFile.setExtension(getFileExtension(f.getOriginalFilename()));
+                    kdnFile.setSize((int) f.getSize());
                     kdnFile.setStorageName("Public");
                     kdnFile.setDocumentType(1);
                     kdnFile.setSysCreationDate(LocalDateTime.now());
-                    kdnFile.setSysCreatorId(getUserIdFromUsername(currentUsername));
+                    Integer uid = getUserIdFromUsername(currentUsername);
+                    kdnFile.setSysCreatorId(uid);
                     kdnFile.setSysModificationDate(LocalDateTime.now());
-                    kdnFile.setSysUserId(getUserIdFromUsername(currentUsername));
+                    kdnFile.setSysUserId(uid);
                     kdnFile.setSysState(1);
                     kdnFile.setNbOpen(0);
 
@@ -688,26 +713,21 @@ public class FileImpService implements FileService {
                     KdnFile savedFile = fileRepository.save(kdnFile);
                     log.info("Fichier enregistré en base avec ID: {}", savedFile.getFileId());
 
-                    // Générer le nom de fichier et sauvegarder physiquement
-                    String finalFileName = generateFileName(fileGroup.getGroupId(), savedFile.getFileId(), savedFile.getExtension());
-                    log.info("Nom de fichier généré: {}", finalFileName);
+                    // Écriture SMB : basePath/receptions/<receptionId>/<nom>
+                    String rel = smb.upload(f, null);
+                    log.info("Fichier sauvegardé sur SMB: {}", rel);
 
-                    String savedFilePath = saveFileToGlobalStorage(file, finalFileName);
-                    log.info("Fichier sauvegardé physiquement: {}", savedFilePath);
-
-                    // Mettre à jour avec le chemin
-                    savedFile.setFtpPath(finalFileName);
-                    savedFile.setTempPath(finalFileName);
+                    // Mettre à jour avec le chemin (relatif à base-path)
+                    savedFile.setFtpPath(rel);
+                    savedFile.setTempPath(rel);
                     savedFile = fileRepository.save(savedFile);
 
-                    uploadedFiles.add(file.getOriginalFilename());
-                    log.info("✅ Fichier {} uploadé avec succès", file.getOriginalFilename());
+                    uploadedFiles.add(f.getOriginalFilename());
+                    log.info("✅ Fichier {} uploadé avec succès", f.getOriginalFilename());
 
                 } catch (Exception e) {
-                    log.error("❌ Erreur lors du traitement du fichier {}: {}",
-                            file.getOriginalFilename(), e.getMessage());
-                    log.error("Stack trace:", e);
-                    errors.add(String.format("Fichier '%s': %s", file.getOriginalFilename(), e.getMessage()));
+                    log.error("❌ Erreur lors du traitement du fichier {}: {}", f.getOriginalFilename(), e.getMessage(), e);
+                    errors.add(String.format("Fichier '%s': %s", f.getOriginalFilename(), e.getMessage()));
                 }
             }
 
@@ -728,7 +748,7 @@ public class FileImpService implements FileService {
             }
 
             String finalMessage = messageBuilder.toString();
-            log.info("=== FIN attachFilesToReception ===");
+            log.info("=== FIN attachFilesToReception (SMB) ===");
             log.info("Résultat: {}", finalMessage);
 
             return new ResponseMessage(finalMessage);
@@ -736,14 +756,9 @@ public class FileImpService implements FileService {
         } catch (BadRequestException | ResourceNotFoundException e) {
             log.error("Erreur métier: {}", e.getMessage());
             throw e;
-        } catch (IOException e) {
-            log.error("Erreur d'accès au serveur distant: {}", e.getMessage());
-            log.error("Stack trace:", e);
-            throw new RuntimeException("Impossible d'accéder au serveur distant: " + e.getMessage(), e);
         } catch (Exception e) {
-            log.error("ERREUR GÉNÉRALE dans attachFilesToReception: {}", e.getMessage());
-            log.error("Stack trace:", e);
-            throw new RuntimeException("Erreur lors de l'upload des fichiers: " + e.getMessage(), e);
+            log.error("ERREUR GÉNÉRALE dans attachFilesToReception (SMB): {}", e.getMessage(), e);
+            throw new RuntimeException("Erreur SMB lors de l'upload des fichiers: " + e.getMessage(), e);
         }
     }
 
@@ -817,11 +832,9 @@ public class FileImpService implements FileService {
         if (file.isEmpty()) {
             throw new BadRequestException("Le fichier est vide");
         }
-
         if (file.getSize() > MAX_FILE_SIZE) {
             throw new BadRequestException("Le fichier est trop volumineux (max: 50MB)");
         }
-
         String filename = file.getOriginalFilename();
         if (filename == null || filename.trim().isEmpty()) {
             throw new BadRequestException("Le nom du fichier est invalide");
@@ -859,6 +872,7 @@ public class FileImpService implements FileService {
         return fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
     }
 
+
     private Integer getUserIdFromUsername(String username) {
         try {
             UserResponseDTO user = userService.findUserByLogin(username);
@@ -875,29 +889,24 @@ public class FileImpService implements FileService {
         if (file == null) {
             throw new BadRequestException("Fichier null détecté");
         }
-
         if (file.isEmpty()) {
             throw new BadRequestException("Fichier vide: " + file.getOriginalFilename());
         }
-
         if (file.getSize() > MAX_FILE_SIZE) {
             throw new BadRequestException(
                     String.format("Fichier trop volumineux: %s (%d bytes > %d max)",
                             file.getOriginalFilename(), file.getSize(), MAX_FILE_SIZE)
             );
         }
-
         String filename = file.getOriginalFilename();
         if (filename == null || filename.trim().isEmpty()) {
             throw new BadRequestException("Nom de fichier manquant ou invalide");
         }
-
         String extension = getFileExtension(filename);
         List<String> extensionsAutorisees = Arrays.asList("pdf", "xls", "xlsx", "png", "jpg", "jpeg", "doc", "docx");
         if (!extensionsAutorisees.contains(extension.toLowerCase())) {
             throw new BadRequestException("Extension non autorisée: " + extension + " (fichier: " + filename + ")");
         }
-
         log.info("Fichier validé: {} ({} bytes, .{})", filename, file.getSize(), extension);
     }
 
@@ -906,6 +915,7 @@ public class FileImpService implements FileService {
         if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
         return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
     }
+
 
     // ==================== MÉTHODES DE MAPPING ====================
 
@@ -935,14 +945,14 @@ public class FileImpService implements FileService {
 
         if (file.getSysCreatorId() != null) {
             Optional<KdnsAccessor> creator = kdnsAccessorRepository.findById(file.getSysCreatorId());
-            if (creator.isPresent()) {
-                dto.setCreateurNom(formatUserName(creator.get()));
-                dto.setCreateurLogin(creator.get().getLogin());
-            }
+            creator.ifPresent(kdnsAccessor -> {
+                dto.setCreateurNom(formatUserName(kdnsAccessor));
+                dto.setCreateurLogin(kdnsAccessor.getLogin());
+            });
         }
-
         return dto;
     }
+
 
     private FileGroupResponseDTO mapFileGroupToResponseDto(KdnFileGroup group) {
         FileGroupResponseDTO dto = new FileGroupResponseDTO();
@@ -959,7 +969,6 @@ public class FileImpService implements FileService {
         dto.setFileCount(fileCount.intValue());
         dto.setTotalSize(totalSize);
         dto.setTotalSizeFormatted(formatFileSize(totalSize));
-
         return dto;
     }
 
@@ -982,12 +991,11 @@ public class FileImpService implements FileService {
 
         if (file.getSysCreatorId() != null) {
             Optional<KdnsAccessor> creator = kdnsAccessorRepository.findById(file.getSysCreatorId());
-            if (creator.isPresent()) {
-                dto.setUploadedByNom(formatUserName(creator.get()));
-                dto.setUploadedBy(creator.get().getLogin());
-            }
+            creator.ifPresent(kdnsAccessor -> {
+                dto.setUploadedByNom(formatUserName(kdnsAccessor));
+                dto.setUploadedBy(kdnsAccessor.getLogin());
+            });
         }
-
         return dto;
     }
 
@@ -1010,12 +1018,11 @@ public class FileImpService implements FileService {
 
         if (file.getSysCreatorId() != null) {
             Optional<KdnsAccessor> creator = kdnsAccessorRepository.findById(file.getSysCreatorId());
-            if (creator.isPresent()) {
-                dto.setUploadedByNom(formatUserName(creator.get()));
-                dto.setUploadedBy(creator.get().getLogin());
-            }
+            creator.ifPresent(kdnsAccessor -> {
+                dto.setUploadedByNom(formatUserName(kdnsAccessor));
+                dto.setUploadedBy(kdnsAccessor.getLogin());
+            });
         }
-
         return dto;
     }
 
@@ -1071,5 +1078,57 @@ public class FileImpService implements FileService {
             status.put("error", e.getMessage());
         }
         return status;
+    }
+    private void testSmbConnectionAsync() {
+        new Thread(() -> {
+            try {
+                Thread.sleep(2000);
+                boolean success = testSmbConnection();
+                if (success) {
+                    log.info("✅ Test de connexion SMB: SUCCÈS");
+                    isRemoteAccessVerified = true;
+                } else {
+                    log.error("❌ Test de connexion SMB: ÉCHEC");
+                    log.error("Les uploads vers le serveur SMB échoueront");
+                }
+            } catch (Exception e) {
+                log.error("❌ Erreur lors du test SMB: {}", e.getMessage());
+            }
+        }).start();
+    }
+    private boolean testSmbConnection() {
+        try {
+            log.info("Test de connexion SMB...");
+
+            // Créer un fichier de test temporaire en mémoire
+            byte[] testData = "test".getBytes();
+            ByteArrayInputStream testInput = new ByteArrayInputStream(testData);
+
+            // Essayer d'uploader un fichier de test
+            String testPath = ".test_" + System.currentTimeMillis() + ".txt";
+
+            try {
+                smb.upload(testInput, testData.length, testPath);
+                log.info("✅ Upload test réussi");
+
+                // Essayer de supprimer le fichier de test
+                try {
+                    smb.delete(testPath);
+                    log.info("✅ Suppression test réussie");
+                } catch (Exception e) {
+                    log.warn("⚠️ Impossible de supprimer le fichier de test (non critique)");
+                }
+
+                return true;
+
+            } catch (Exception e) {
+                log.error("❌ Test SMB échoué: {}", e.getMessage());
+                return false;
+            }
+
+        } catch (Exception e) {
+            log.error("❌ Erreur lors du test SMB: {}", e.getMessage());
+            return false;
+        }
     }
 }

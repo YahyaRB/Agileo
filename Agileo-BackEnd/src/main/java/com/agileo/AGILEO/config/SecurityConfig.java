@@ -46,7 +46,7 @@ public class SecurityConfig {
     @Value("${keycloak.realm:RB-realm}")
     private String keycloakRealm;
 
-    @Value("${cors.allowed-origins:http://192.168.77.17:8080,http://localhost:4200}")
+    @Value("${cors.allowed-origins:http://192.168.77.22:8080,http://localhost:4200}")
     private String allowedOrigins;
 
     /**
