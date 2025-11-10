@@ -22,6 +22,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
@@ -328,7 +329,6 @@ public class DivaltoIntegrationReceptionImpService implements DivaltoIntegration
                                     log.warn("⚠️ Erreur mise à jour stock total article: {}", e.getMessage());
                                 }
 
-
                                 ligne.setIntegre(1);
                                 ligne.setBlDiva(entBL.getPino().intValue());
                                 ligneReceptionRepository.save(ligne);
@@ -420,6 +420,9 @@ public class DivaltoIntegrationReceptionImpService implements DivaltoIntegration
             entBL.setUsercrdh(now);
             entBL.setUsermodh(now);
 
+            LocalDateTime localDateTime = reception.getSysModificationDate();
+            String dateFormatted = localDateTime.toLocalDate().toString(); // Format yyyy-MM-dd
+            entBL.setPidt(LocalDate.parse(dateFormatted));
             String paddedUsername = String.format("%-20s", currentUsername.toUpperCase());
             entBL.setUsercr(paddedUsername);
             entBL.setUsermo(paddedUsername);
