@@ -291,16 +291,8 @@ public class ConsommationServiceImpl implements ConsommationService {
                         ", Unité: " + ligne.getUnite());
             }
 
-            // 4. Mettre à jour le statut à 1 (Envoyé) AVANT l'intégration
-            System.out.println("🔄 Mise à jour du statut à 1 (Envoyé)...");
-            consommation.setStatut(1);
-            consommation.setSysModificationDate(LocalDateTime.now());
 
-            // 5. Mettre à jour la date de consommation si nécessaire
-            if (consommation.getDateC() == null) {
-                consommation.setDateC(LocalDateTime.now());
-                System.out.println("✅ Date de consommation mise à jour: " + consommation.getDateC());
-            }
+
 
             // 6. Sauvegarder la consommation avec le nouveau statut
             consommationRepository.save(consommation);
@@ -313,14 +305,15 @@ public class ConsommationServiceImpl implements ConsommationService {
 
             try {
                 // Appel du service d'intégration Divalto
-                divaltoIntegrationConsommationService.integrerConsommationDansDivalto(consommationId, currentUsername);
+             //   divaltoIntegrationConsommationService.integrerConsommationDansDivalto(consommationId, currentUsername);
 
                 System.out.println("═══════════════════════════════════════════════════════════════");
                 System.out.println("✅ INTÉGRATION DIVALTO TERMINÉE AVEC SUCCÈS !");
                 System.out.println("═══════════════════════════════════════════════════════════════");
 
                 // ✅ CORRECTION : Mettre à jour le statut à 2 (Reçu) APRÈS succès
-                consommation.setStatut(2);
+                //consommation.setStatut(2);
+                consommation.setStatut(1);
                 consommation.setSysModificationDate(LocalDateTime.now());
                 consommationRepository.save(consommation);
                 System.out.println("✅ Statut final mis à jour : Reçu (2)");
@@ -886,132 +879,6 @@ public class ConsommationServiceImpl implements ConsommationService {
             throw new BadRequestException("Impossible de déterminer un dépôt pour le code affaire: " + codeAffaire);
         }
     }
-    /**
-     * Calcule la quantité consommée en brouillon pour un article dans un dépôt
-     * VERSION OPTIMISÉE avec gestion d'erreurs robuste
-     */
-    private Double getQuantiteEnBrouillon(String referenceArticle, String depot) {
-        try {
-            System.out.println("🔍 Calcul quantité brouillon pour article: " + referenceArticle + " dans dépôt: " + depot);
 
-            // Récupérer toutes les consommations en brouillon (statut = 0)
-            List<Consommation> consommationsBrouillon = consommationRepository.findByStatut(0);
-            System.out.println("📦 Nombre total de consommations en brouillon: " + consommationsBrouillon.size());
 
-            if (consommationsBrouillon.isEmpty()) {
-                System.out.println("✅ Aucune consommation en brouillon trouvée");
-                return 0.0;
-            }
-
-            // Filtrer par dépôt de manière sécurisée
-            List<Integer> idsConsommationsDepot = new ArrayList<>();
-
-            for (Consommation c : consommationsBrouillon) {
-                try {
-                    String chantier = c.getChantier();
-                    if (chantier == null || chantier.trim().isEmpty()) {
-                        continue; // Ignorer les consommations sans chantier
-                    }
-
-                    // Extraire le dépôt du chantier de manière sécurisée
-                    String depotConsommation = extraireDepotDuCodeAffaireSafe(chantier);
-
-                    if (depotConsommation != null && depot.equals(depotConsommation)) {
-                        idsConsommationsDepot.add(c.getIdBc());
-                    }
-                } catch (Exception e) {
-                    // Ignorer silencieusement les erreurs d'extraction de dépôt pour une consommation
-                    System.out.println("⚠️ Erreur extraction dépôt pour consommation " + c.getIdBc() + ": " + e.getMessage());
-                }
-            }
-
-            System.out.println("🎯 Nombre de consommations brouillon dans ce dépôt: " + idsConsommationsDepot.size());
-
-            if (idsConsommationsDepot.isEmpty()) {
-                System.out.println("✅ Aucune consommation en brouillon pour ce dépôt");
-                return 0.0;
-            }
-
-            // Calculer la somme des quantités pour cet article
-            List<LigneConsommation> lignesBrouillon = ligneConsommationRepository
-                    .findByNumConsInAndRef(idsConsommationsDepot, referenceArticle.trim());
-
-            Double totalBrouillon = lignesBrouillon.stream()
-                    .mapToDouble(LigneConsommation::getQte)
-                    .sum();
-
-            System.out.println("💰 Quantité totale en brouillon pour " + referenceArticle + ": " + totalBrouillon);
-
-            return totalBrouillon;
-
-        } catch (Exception e) {
-            // NE PAS lancer d'exception, retourner 0.0 par sécurité
-            System.err.println("❌ ERREUR calcul quantité brouillon pour " + referenceArticle + ": " + e.getMessage());
-            e.printStackTrace();
-            return 0.0;
-        }
-    }
-
-    /**
-     * Version SAFE de l'extraction du dépôt - ne lance JAMAIS d'exception
-     */
-
-    private Map<String, Double> getQuantitesEnBrouillonParDepot(String depot) {
-        try {
-            System.out.println("🔍 Calcul des quantités en brouillon pour le dépôt: " + depot);
-
-            // 1️⃣ Récupérer TOUTES les consommations en brouillon (UNE SEULE requête)
-            List<Consommation> consommationsBrouillon = consommationRepository.findByStatut(0);
-
-            if (consommationsBrouillon.isEmpty()) {
-                System.out.println("✅ Aucune consommation en brouillon");
-                return Collections.emptyMap();
-            }
-
-            // 2️⃣ Filtrer par dépôt
-            List<Integer> idsConsommationsDepot = consommationsBrouillon.stream()
-                    .filter(c -> c.getChantier() != null)
-                    .filter(c -> {
-                        try {
-                            String depotConsommation = extraireDepotDuCodeAffaireSafe(c.getChantier());
-                            return depot.equals(depotConsommation);
-                        } catch (Exception e) {
-                            return false;
-                        }
-                    })
-                    .map(Consommation::getIdBc)
-                    .collect(Collectors.toList());
-
-            if (idsConsommationsDepot.isEmpty()) {
-                System.out.println("✅ Aucune consommation en brouillon pour ce dépôt");
-                return Collections.emptyMap();
-            }
-
-            System.out.println("📦 Consommations brouillon trouvées: " + idsConsommationsDepot.size());
-
-            // 3️⃣ Récupérer TOUTES les lignes en brouillon (UNE SEULE requête)
-            List<LigneConsommation> lignesBrouillon = ligneConsommationRepository.findByNumConsIn(idsConsommationsDepot);
-
-            System.out.println("📝 Lignes en brouillon trouvées: " + lignesBrouillon.size());
-
-            // 4️⃣ Grouper par référence article et sommer les quantités
-            Map<String, Double> quantitesParArticle = lignesBrouillon.stream()
-                    .collect(Collectors.groupingBy(
-                            ligne -> ligne.getRef().trim(),
-                            Collectors.summingDouble(LigneConsommation::getQte)
-                    ));
-
-            System.out.println("✅ Articles avec quantités en brouillon: " + quantitesParArticle.size());
-            quantitesParArticle.forEach((ref, qte) ->
-                    System.out.println("   📌 " + ref + " : " + qte)
-            );
-
-            return quantitesParArticle;
-
-        } catch (Exception e) {
-            System.err.println("❌ ERREUR calcul quantités brouillon: " + e.getMessage());
-            e.printStackTrace();
-            return Collections.emptyMap();
-        }
-    }
 }

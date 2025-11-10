@@ -274,23 +274,34 @@
     </div>
 
     <!-- Boutons d'action -->
-    <div class="modal-footer">
+    <!-- Dans ligne-consommation_component.html, remplacer la section "Boutons d'action" (vers la ligne 251) par: -->
+
+    <!-- Boutons d'action -->
+    <div class="d-flex justify-content-end align-items-center mt-4 mb-5">
       <button routerLink="/consommations"
               type="button"
-              class="btn btn-secondary"
+              class="btn btn-secondary mr-2"
               [disabled]="isLoading">
         <i class="fa fa-arrow-left"></i> Retour aux Consommations
       </button>
 
       <!-- Bouton pour actualiser les données -->
       <button type="button"
-              class="btn btn-info"
+              class="btn btn-info mr-2"
               (click)="loadArticlesDisponibles(selectedConsommation.affaireCode)"
               [disabled]="isLoading || isLoadingArticles">
         <i class="fa fa-refresh" *ngIf="!isLoadingArticles"></i>
         <i class="fa fa-spinner fa-spin" *ngIf="isLoadingArticles"></i>
         Actualiser le Stock
       </button>
+
+      <div *ngIf="canEdit && existingLignes.length > 0">
+        <button class="btn btn-success"
+                (click)="envoyerConsommation()"
+                title="Envoyer la consommation">
+          <i class="fa fa-paper-plane"></i> Envoyer la consommation
+        </button>
+      </div>
     </div>
   </div>
 </div>

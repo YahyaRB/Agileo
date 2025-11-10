@@ -54,6 +54,9 @@
             </h6>
 
             <!-- Sélection Affaire -->
+            <!-- Remplacer la section "Sélection Affaire" (lignes 56-78) par: -->
+
+            <!-- Sélection Affaire -->
             <div class="form-group">
               <label for="affaireFilter">
                 Affaire <span class="text-danger">*</span>
@@ -67,7 +70,15 @@
                 placeholder="Sélectionnez une affaire"
                 [clearable]="true"
                 (change)="onAffaireFilterChange($event)"
-                [disabled]="isLoadingUser">
+                [disabled]="isLoadingUser"
+                [searchFn]="customSearchFnAffaire">
+
+                <!-- Template pour l'affichage de l'item sélectionné -->
+                <ng-template ng-label-tmp let-item="item">
+                  <strong>{{item.code}}</strong> - {{item.name}}
+                </ng-template>
+
+                <!-- Template pour les options dans le dropdown -->
                 <ng-template ng-option-tmp let-item="item">
                   <strong>{{item.code}}</strong> - {{item.name}}
                 </ng-template>
@@ -228,9 +239,9 @@
             <div class="recap-box">
               <div class="recap-item">
                 <strong>Affaire:</strong>
-                <span *ngIf="myFormRegister.get('affaireFilter')?.value">
-                  {{myFormRegister.get('affaireFilter')?.value.code}} - {{myFormRegister.get('affaireFilter')?.value.name}}
-                </span>
+                <span *ngIf="myFormRegister.get('affaire')?.value">
+    {{myFormRegister.get('affaire')?.value.affaire}} - {{myFormRegister.get('affaire')?.value.libelle}}
+  </span>
               </div>
               <div class="recap-item">
                 <strong>Bon de commande:</strong>
@@ -263,7 +274,7 @@
             <!-- N° BL (Optionnel) -->
             <div class="form-group">
               <label for="idAgelio">
-                N° BL <span class="text-muted">(optionnel)</span>
+                N° BL <span class="text-danger">*</span>
               </label>
               <input
                 type="text"

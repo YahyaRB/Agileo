@@ -665,6 +665,8 @@
               <label for="affaireFilterUpdate">
                 Affaire <span class="text-danger">*</span>
               </label>
+              <!-- Dans list-receptions_component.html, remplacer le ng-select affaire (lignes 668-683) par: -->
+
               <ng-select
                 id="affaireFilterUpdate"
                 [(ngModel)]="selectedAffaireUpdate"
@@ -676,7 +678,15 @@
                 (change)="onAffaireFilterChangeUpdate($event)"
                 [disabled]="isLoadingUser || receptionHasLignes"
                 [readonly]="receptionHasLignes"
+                [searchFn]="customSearchFnAffaire"
                 name="affaireFilterUpdate">
+
+                <!-- Template pour l'affichage de l'item sélectionné -->
+                <ng-template ng-label-tmp let-item="item">
+                  <strong>{{item.code}}</strong> - {{item.name}}
+                </ng-template>
+
+                <!-- Template pour les options dans le dropdown -->
                 <ng-template ng-option-tmp let-item="item">
                   <strong>{{item.code}}</strong> - {{item.name}}
                 </ng-template>

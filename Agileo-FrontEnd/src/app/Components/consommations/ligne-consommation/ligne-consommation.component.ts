@@ -508,4 +508,63 @@ export class LigneConsommationComponent implements OnInit {
     if (this.currentUser.roles.includes('CONSULTEUR')) return 'Consulteur';
     return 'Utilisateur';
   }
+  // Dans ligne-consommation_component.ts, ajouter cette méthode avant la fin de la classe (avant le dernier })
+
+  envoyerConsommation() {
+    if (!this.selectedConsommation || !this.selectedConsommation.id) {
+      this.notifyService.showError('Consommation non trouvée', 'Erreur');
+      return;
+    }
+
+    if (this.existingLignes.length === 0) {
+      this.notifyService.showWarning(
+        'Vous devez ajouter au moins une ligne avant d\'envoyer la consommation',
+        'Consommation vide'
+      );
+      return;
+    }
+
+    // Confirmation avant envoi
+    if (!confirm('Êtes-vous sûr de vouloir envoyer cette consommation ? Elle ne pourra plus être modifiée.')) {
+      return;
+    }
+
+    // Envoyer la consommation
+    this.consommationService.envoyerConsommation(this.selectedConsommation.id).subscribe({
+      next: () => {
+        this.notifyService.showSuccess(
+          'Consommation envoyée avec succès',
+          'Envoi réussi'
+        );
+        // Recharger la consommation pour avoir le statut mis à jour
+        this.consommationService.getConsommationById(this.selectedConsommation.id.toString()).subscribe({
+          next: data => {
+            this.selectedConsommation = data;
+            this.checkConsommationStatus();
+          }
+        });
+      },
+      error: err => {
+        console.error('Erreur lors de l\'envoi de la consommation:', err);
+        this.notifyService.showError(
+          err.error?.message || 'Erreur lors de l\'envoi de la consommation',
+          'Erreur'
+        );
+      }
+    });
+  }
+
+  checkConsommationStatus() {
+    if (this.selectedConsommation.statut === 'Envoyé') {
+      this.canEdit = false;
+      this.statusMessage = 'Cette consommation a été envoyée et ne peut plus être modifiée.';
+      this.notifyService.showWarning(
+        'Cette consommation a été envoyée. Aucune modification n\'est possible.',
+        'Consommation envoyée'
+      );
+    } else {
+      this.canEdit = true;
+      this.statusMessage = '';
+    }
+  }
 }

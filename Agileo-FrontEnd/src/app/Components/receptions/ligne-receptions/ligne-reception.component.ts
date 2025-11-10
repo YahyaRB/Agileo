@@ -626,4 +626,54 @@ export class LigneReceptionComponent implements OnInit {
       }
     });
   }
+  // Dans ligne-reception_component.ts, ajouter cette méthode avant la fin de la classe (avant le dernier })
+
+// Dans ligne-reception_component.ts, remplacer la méthode envoyerReception par:
+
+  envoyerReception() {
+    if (!this.selectedReception || !this.selectedReception.id) {
+      this.notifyService.showError('Réception non trouvée', 'Erreur');
+      return;
+    }
+
+    if (this.existingLignes.length === 0) {
+      this.notifyService.showWarning(
+        'Vous devez ajouter au moins une ligne avant d\'envoyer la réception',
+        'Réception vide'
+      );
+      return;
+    }
+
+    // Confirmation avant envoi
+    if (!confirm('Êtes-vous sûr de vouloir envoyer cette réception ? Elle ne pourra plus être modifiée.')) {
+      return;
+    }
+
+    // Convertir l'ID en number et utiliser le statut numérique 1 (Envoyé)
+    const receptionId = Number(this.selectedReception.id);
+    const nouveauStatut = 1; // 1 = Envoyé
+
+    this.receptionService.updateReceptionStatut(receptionId, nouveauStatut).subscribe({
+      next: () => {
+        this.notifyService.showSuccess(
+          'Réception envoyée avec succès',
+          'Envoi réussi'
+        );
+        // Recharger la réception pour avoir le statut mis à jour
+        this.receptionService.getReceptionById(this.selectedReception.id!.toString()).subscribe({
+          next: data => {
+            this.selectedReception = data;
+            this.checkReceptionStatus();
+          }
+        });
+      },
+      error: err => {
+        console.error('Erreur lors de l\'envoi de la réception:', err);
+        this.notifyService.showError(
+          err.error?.message || 'Erreur lors de l\'envoi de la réception',
+          'Erreur'
+        );
+      }
+    });
+  }
 }

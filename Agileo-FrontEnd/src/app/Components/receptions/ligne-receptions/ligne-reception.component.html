@@ -359,14 +359,24 @@
 
 
 
+    <!-- Remplacer la section "Boutons d'action" (lignes 362-370) par: -->
+
     <!-- Boutons d'action -->
-    <div class="modal-footer">
+    <div class="d-flex justify-content-end align-items-center mt-4 mb-5">
       <button routerLink="/receptions"
               type="button"
-              class="btn btn-secondary"
+              class="btn btn-secondary mr-2"
               [disabled]="isLoading">
         <i class="fa fa-arrow-left"></i> Retour aux Réceptions
       </button>
+
+      <div *ngIf="canEdit && existingLignes.length > 0">
+        <button class="btn btn-success"
+                (click)="envoyerReception()"
+                title="Envoyer la réception">
+          <i class="fa fa-paper-plane"></i> Envoyer la réception
+        </button>
+      </div>
     </div>
   </div>
 </div>

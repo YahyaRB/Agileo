@@ -90,8 +90,10 @@ export class AddReceptionComponent implements OnInit {
         return true;
 
       case 3:
-        // Step 3: Date de bl obligatoire
-        return this.myFormRegister.get('dateBl')?.valid;
+        // Step 3: Date de bl et N° BL obligatoires
+        const dateBlValid = this.myFormRegister.get('dateBl')?.valid;
+        const idAgelioValid = this.myFormRegister.get('idAgelio')?.valid;
+        return dateBlValid && idAgelioValid;
 
       case 4:
         // Step 4: Pas de validation obligatoire (fichiers optionnels)
@@ -440,7 +442,7 @@ export class AddReceptionComponent implements OnInit {
       dateBl: ['', Validators.required],
       nomFournisseur: [{value: '', disabled: true}],
       refFournisseur: [{value: '', disabled: true}],
-      idAgelio: [''],
+      idAgelio: ['', Validators.required],
       fichiers: this.formBuilder.array([])
     });
   }
@@ -873,5 +875,15 @@ export class AddReceptionComponent implements OnInit {
 
   get fichiers(): FormArray {
     return this.myFormRegister.get('fichiers') as FormArray;
+  }
+  customSearchFnAffaire = (term: string, item: any): boolean => {
+    if (!term) return true;
+
+    const searchTerm = term.toLowerCase();
+    const code = (item.code || '').toLowerCase();
+    const name = (item.name || '').toLowerCase();
+
+    // Recherche dans le code OU dans le libellé
+    return code.includes(searchTerm) || name.includes(searchTerm);
   }
 }

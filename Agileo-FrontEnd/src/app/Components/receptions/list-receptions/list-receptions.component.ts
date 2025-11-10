@@ -2134,5 +2134,18 @@ export class ListReceptionsComponent implements OnInit, OnDestroy {
       console.log('Fournisseurs disponibles:', this.availableFournisseursUpdate.map(f => f.name));
     }
   }
+  // Dans list-receptions_component.ts, ajouter cette méthode avant la fin de la classe:
+
+// Fonction de recherche personnalisée pour les affaires
+  customSearchFnAffaire = (term: string, item: any): boolean => {
+    if (!term) return true;
+
+    const searchTerm = term.toLowerCase();
+    const code = (item.code || '').toLowerCase();
+    const name = (item.name || '').toLowerCase();
+
+    // Recherche dans le code OU dans le libellé
+    return code.includes(searchTerm) || name.includes(searchTerm);
+  }
 }
 
