@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -73,4 +74,11 @@ public interface ReceptionRepository extends JpaRepository<Reception, Integer> {
     // Compter les brouillons par utilisateur
     @Query("SELECT COUNT(r) FROM Reception r WHERE r.sysCreatorId = :creatorId AND (r.sysState IS NULL OR r.sysState = 0)")
     Long countReceptionsBrouillonsByCreator(@Param("creatorId") Integer creatorId);
+
+    @Query("SELECT FUNCTION('YEAR', r.sysCreationDate) AS yr, FUNCTION('MONTH', r.sysCreationDate) AS mn, COUNT(r) " +
+            "FROM Reception r " +
+            "WHERE r.sysCreatorId = :creatorId AND r.sysCreationDate IS NOT NULL AND r.sysCreationDate >= :startDate " +
+            "GROUP BY FUNCTION('YEAR', r.sysCreationDate), FUNCTION('MONTH', r.sysCreationDate) " +
+            "ORDER BY FUNCTION('YEAR', r.sysCreationDate), FUNCTION('MONTH', r.sysCreationDate)")
+    List<Object[]> countMonthlyByCreator(@Param("creatorId") Integer creatorId, @Param("startDate") LocalDateTime startDate);
 }

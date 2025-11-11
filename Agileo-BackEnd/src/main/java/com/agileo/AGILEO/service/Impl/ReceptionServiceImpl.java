@@ -36,6 +36,7 @@ public class ReceptionServiceImpl implements ReceptionService {
     private final ReceptionRepository receptionRepository;
     private final LigneReceptionRepository ligneReceptionRepository;
     private final AffaireRepository affaireRepository;
+    private final AffaireDisplayRepository affaireDisplayRepository; // ✅ NOUVEAU
     private final KdnsAccessorRepository kdnsAccessorRepository;
     private final KdnFileRepository kdnFileRepository;
     private final ArticleReceptionRepository articleReceptionRepository;
@@ -51,6 +52,7 @@ public class ReceptionServiceImpl implements ReceptionService {
             ReceptionRepository receptionRepository,
             LigneReceptionRepository ligneReceptionRepository,
             AffaireRepository affaireRepository,
+            AffaireDisplayRepository affaireDisplayRepository, // ✅ NOUVEAU
             KdnsAccessorRepository kdnsAccessorRepository,
             ArticleReceptionRepository articleReceptionRepository,
             UserServiceImpl userService,
@@ -65,6 +67,7 @@ public class ReceptionServiceImpl implements ReceptionService {
         this.receptionRepository = receptionRepository;
         this.ligneReceptionRepository = ligneReceptionRepository;
         this.affaireRepository = affaireRepository;
+        this.affaireDisplayRepository = affaireDisplayRepository; // ✅ NOUVEAU
         this.kdnsAccessorRepository = kdnsAccessorRepository;
         this.articleReceptionRepository = articleReceptionRepository;
         this.userService = userService;
@@ -82,7 +85,7 @@ public class ReceptionServiceImpl implements ReceptionService {
     @Override
     public ReceptionResponseDTO createReception(ReceptionRequestDTO receptionDto, String currentUsername) {
         try {
-            // Validation de l'affaire
+            // ✅ GARDE affaireRepository pour la SÉCURITÉ (affaires autorisées uniquement)
             Affaire affaire = null;
             try {
                 Integer affaireId = Integer.parseInt(String.valueOf(receptionDto.getAffaireId()));
@@ -186,7 +189,7 @@ public class ReceptionServiceImpl implements ReceptionService {
             int page, int size, String sortBy, String sortDirection, String search) {
 
         if (page < 0) page = 0;
-        if (size <= 0 || size > 20) size = 20;
+        if (size <= 0 || size > 100) size = 20;
         if (sortBy == null || sortBy.isEmpty()) sortBy = "numero";
 
         sortBy = mapSortFieldToEntityProperty(sortBy);
@@ -261,7 +264,7 @@ public class ReceptionServiceImpl implements ReceptionService {
             Integer accessorId = Integer.parseInt(idAgelio);
 
             if (page < 0) page = 0;
-            if (size <= 0 || size > 20) size = 20;
+            if (size <= 0 || size > 100) size = 20;
             if (sortBy == null || sortBy.isEmpty()) sortBy = "numero";
 
             sortBy = mapSortFieldToEntityProperty(sortBy);
@@ -499,7 +502,7 @@ public class ReceptionServiceImpl implements ReceptionService {
                 try {
                     LigneReception ligne = new LigneReception();
 
-                    // ✅ CORRECTION LIGNE 525 - Récupération MOUV et MVTL
+                    // Récupération MOUV et MVTL
                     Optional<MOUV> mouvOpt = mouvRepository.findLigneCommandeByPinoAndRef(
                             BigDecimal.valueOf(reception.getCommande()),
                             ligneDto.getReferenceArticle().trim()
@@ -511,21 +514,22 @@ public class ReceptionServiceImpl implements ReceptionService {
 
                     MOUV mouv = mouvOpt.get();
 
-                    // ✅ CORRECTION : Paramètres corrects pour findMouvementByEnrno
-                    Optional<Mvtl> mvtl = mvtlRepository.findMouvementByEnrno(
+                    Optional<Mvtl> mvtlOpt = mvtlRepository.findMouvementByEnrno(
                             mouv.getRef(),
                             mouv.getCdno()
                     );
 
-                    if (mvtl == null) {
+                    if (!mvtlOpt.isPresent()) {
                         throw new BadRequestException("Mouvement de stock non trouvé pour l'article: " + ligneDto.getReferenceArticle());
                     }
+
+                    Mvtl mvtl = mvtlOpt.get();
 
                     ligne.setEntId(reception.getNumero());
                     ligne.setCommande(reception.getCommande());
                     ligne.setArticle(ligneDto.getReferenceArticle());
-                    ligne.setEnrno(mvtl.get().getEnrno().intValue());
-                    ligne.setVtlno(mvtl.get().getVtlno().intValue());
+                    ligne.setEnrno(mvtl.getEnrno().intValue());
+                    ligne.setVtlno(mvtl.getVtlno().intValue());
 
                     String designation = articleReception.getDesignation();
                     if (ligneDto.getDesignationArticle() != null && !ligneDto.getDesignationArticle().trim().isEmpty()) {
@@ -843,6 +847,9 @@ public class ReceptionServiceImpl implements ReceptionService {
         return mapToResponseDTOs(Collections.singletonList(reception)).get(0);
     }
 
+    /**
+     * ✅ MÉTHODE MODIFIÉE - Utilise AffaireDisplayRepository pour l'affichage
+     */
     private List<ReceptionResponseDTO> mapToResponseDTOs(List<Reception> receptions) {
         if (receptions.isEmpty()) {
             return Collections.emptyList();
@@ -857,8 +864,10 @@ public class ReceptionServiceImpl implements ReceptionService {
         List<ReceptionResponseDTO> allResults = new ArrayList<>();
 
         for (List<Reception> batch : batches) {
+            // Les codes d'affaires seront résolus via les commandes
+
             Set<Long> commandeIds = batch.stream()
-                    .map(r -> Long.valueOf(r.getCommande()))
+                    .map(r -> r.getCommande() != null ? Long.valueOf(r.getCommande()) : null)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toSet());
 
@@ -867,9 +876,10 @@ public class ReceptionServiceImpl implements ReceptionService {
                     .filter(Objects::nonNull)
                     .collect(Collectors.toSet());
 
-            Map<Long, Commande> commandes = new HashMap<>();
-            Map<Integer, KdnsAccessor> users = new HashMap<>();
+            // ✅ NOUVEAU : Charger les affaires depuis AffaireDisplayRepository
+            Map<String, AffaireDisplay> affaires = new HashMap<>();
 
+            Map<Long, Commande> commandes = new HashMap<>();
             if (!commandeIds.isEmpty() && commandeIds.size() <= BATCH_SIZE) {
                 try {
                     commandes = commandeRepository.findAllById(commandeIds)
@@ -880,6 +890,23 @@ public class ReceptionServiceImpl implements ReceptionService {
                 }
             }
 
+            // ✅ Charger les AffairesDisplay à partir des codes d'affaires des commandes
+            Set<String> affaireCodesFromCommandes = commandes.values().stream()
+                    .map(Commande::getAffaireCode)
+                    .filter(code -> code != null && !code.trim().isEmpty())
+                    .collect(Collectors.toSet());
+            if (!affaireCodesFromCommandes.isEmpty()) {
+                try {
+                    affaires = affaireDisplayRepository.findAllById(affaireCodesFromCommandes)
+                            .stream()
+                            .collect(Collectors.toMap(AffaireDisplay::getAffaire, a -> a));
+                } catch (Exception e) {
+                    System.err.println("Erreur lors du chargement des AffairesDisplay: " + e.getMessage());
+                }
+            }
+
+            // ✅ CORRECTION : Utiliser getAccessorId au lieu de getId
+            Map<Integer, KdnsAccessor> users = new HashMap<>();
             if (!userIds.isEmpty() && userIds.size() <= BATCH_SIZE) {
                 try {
                     users = kdnsAccessorRepository.findAllById(userIds)
@@ -890,6 +917,7 @@ public class ReceptionServiceImpl implements ReceptionService {
                 }
             }
 
+            final Map<String, AffaireDisplay> finalAffaires = affaires;
             final Map<Long, Commande> finalCommandes = commandes;
             final Map<Integer, KdnsAccessor> finalUsers = users;
 
@@ -907,19 +935,22 @@ public class ReceptionServiceImpl implements ReceptionService {
                         dto.setCreatedDate(reception.getSysCreationDate());
                         dto.setDateReception(reception.getSysCreationDate());
 
+                        // ✅ Mapper l'affaire à partir de la commande -> affaireCode -> AffaireDisplay
                         if (reception.getCommande() != null) {
-                            Commande commande = finalCommandes.get(Long.valueOf(reception.getCommande()));
-                            if (commande != null) {
-                                dto.setAffaireCode(commande.getAffaireCode());
-                                dto.setAffaireLibelle(commande.getAffaireName());
-                                dto.setRefFournisseur(commande.getFournisseurId());
-                                dto.setNomFournisseur(commande.getFournisseur());
-                                if (commande.getDateCommande() != null) {
-                                    dto.setDateBl(reception.getSysModificationDate());
+                            Commande cmd = finalCommandes.get(Long.valueOf(reception.getCommande()));
+                            if (cmd != null && cmd.getAffaireCode() != null) {
+                                AffaireDisplay affaire = finalAffaires.get(cmd.getAffaireCode());
+                                if (affaire != null) {
+                                    dto.setAffaireCode(affaire.getAffaire());
+                                    dto.setAffaireLibelle(affaire.getLibelle());
+                                } else {
+                                    // fallback minimal: afficher le code s'il existe
+                                    dto.setAffaireCode(cmd.getAffaireCode());
                                 }
                             }
                         }
 
+                        // Mapper l'utilisateur créateur
                         if (reception.getSysCreatorId() != null) {
                             KdnsAccessor creator = finalUsers.get(reception.getSysCreatorId());
                             if (creator != null) {

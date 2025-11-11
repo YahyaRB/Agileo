@@ -2,6 +2,7 @@ package com.agileo.AGILEO.controller;
 
 import com.agileo.AGILEO.Dtos.response.AccessResponseDTO;
 import com.agileo.AGILEO.Dtos.response.RoleResponseDTO;
+import com.agileo.AGILEO.Dtos.response.UserActivityStatsDTO;
 import com.agileo.AGILEO.Dtos.response.UserResponseDTO;
 import com.agileo.AGILEO.exception.ResourceNotFoundException;
 import com.agileo.AGILEO.message.ResponseMessage;
@@ -123,6 +124,11 @@ public class UserAdminController {
     @GetMapping("/{userId}/acces")
     public ResponseEntity<List<AccessResponseDTO>> getUserAcces(@PathVariable Long userId) {
         return ResponseEntity.ok(userService.getUserAcces(userId));
+    }
+
+    @GetMapping("/{userId}/activity-stats")
+    public ResponseEntity<UserActivityStatsDTO> getUserActivityStats(@PathVariable Long userId) {
+        return ResponseEntity.ok(userService.getUserActivityStats(userId));
     }
 
 

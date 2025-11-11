@@ -1,4 +1,4 @@
-import {Component, Input, OnChanges, OnInit, SimpleChanges, ViewChild} from '@angular/core';
+import {Component, OnChanges, OnInit, SimpleChanges, ViewChild, OnDestroy} from '@angular/core';
 import { Output } from '@angular/core';
 import { EventEmitter } from '@angular/core';
 import { ChangeDetectorRef } from '@angular/core';
@@ -13,6 +13,8 @@ import { Access } from 'src/interfaces/iaccess';
 import { Role } from 'src/interfaces/irole';
 import {SortService} from "../../../services/sort.service";
 import {catchError} from "rxjs/operators";
+import { UserActivityStats } from 'src/interfaces/iuser-activity-stats';
+import { ChartConfiguration } from 'chart.js';
 
 declare var $: any; // Pour utiliser jQuery/Bootstrap
 
@@ -21,7 +23,7 @@ declare var $: any; // Pour utiliser jQuery/Bootstrap
   templateUrl: './list-utilisateurs.component.html',
   styleUrls: ['./list-utilisateurs.component.css' ]
 })
-export class ListUtilisateursComponent implements OnInit, OnChanges{
+export class ListUtilisateursComponent implements OnInit, OnChanges, OnDestroy{
   @ViewChild(AffectationUserAccessComponent) affectationChild!: AffectationUserAccessComponent;
   @ViewChild(AffectationUserRoleComponent) affectationRoleChild!: AffectationUserRoleComponent;
 
@@ -69,11 +71,18 @@ export class ListUtilisateursComponent implements OnInit, OnChanges{
   //for pagination
   page: number = 1;
   count: number = 0;
-  tableSize: number = 6;
-  tableSizes: any = [5, 10, 15, 20];
+  tableSize: number = 20;
+  tableSizes: any = [10, 20, 50, 100];
   userSelected!: Iuser;
 
   accessorSelected: any;
+
+  statsLoading = false;
+  statsError: string | null = null;
+  statsData: UserActivityStats | null = null;
+  statsChartData: ChartConfiguration<'line'>['data'] | null = null;
+  statsChartOptions: ChartConfiguration<'line'>['options'] | null = null;
+  statsModalUser: Iuser | null = null;
 
   constructor(
     private cdr: ChangeDetectorRef,
@@ -86,10 +95,18 @@ export class ListUtilisateursComponent implements OnInit, OnChanges{
   postList(): void {
     this.utilisateurServicd.getAllUsers().subscribe(users => {
       this.users = users;
+      this.count = this.users?.length || 0;
       // ✅ NOUVEAU: Charger les mappings User -> Accessor
       this.loadUserAccessorMappings();
       console.log(this.users);
     });
+  }
+  onTableSizeChange(event: any): void {
+    const newSize = parseInt(event?.target?.value ?? event, 10);
+    if (!isNaN(newSize)) {
+      this.tableSize = newSize;
+      this.page = 1;
+    }
   }
 
   private loadUserAccessorMappings(): void {
@@ -188,6 +205,7 @@ export class ListUtilisateursComponent implements OnInit, OnChanges{
   //
   //   return filteredUsers;
   // }
+  selectedAccessorId: any | boolean;
   getFilteredUsers(): Iuser[] {
     if (!this.users) return [];
     if (!this.selectedStatus && !this.selectedRole) {
@@ -595,5 +613,147 @@ export class ListUtilisateursComponent implements OnInit, OnChanges{
         alert('Erreur lors de la suppression de la liaison');
       }
     });
+  }
+
+  openUserStats(user: Iuser) {
+    this.statsModalUser = user;
+    this.statsLoading = true;
+    this.statsError = null;
+    this.statsData = null;
+    this.statsChartData = null;
+    this.statsChartOptions = null;
+    this.cdr.detectChanges();
+
+    setTimeout(() => {
+      $('#userStatsModal').modal('show');
+    }, 0);
+
+    const sub = this.utilisateurServicd.getUserActivityStats(user.id).subscribe({
+      next: (stats) => {
+        this.statsData = stats;
+        this.prepareStatsChart(stats);
+        this.statsLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Erreur chargement statistiques utilisateur:', error);
+        this.statsError = error?.error?.message || 'Impossible de charger les statistiques pour cet utilisateur.';
+        this.statsLoading = false;
+        this.cdr.detectChanges();
+      }
+    });
+
+    this.subscriptions.add(sub);
+  }
+
+  closeStatsModal() {
+    $('#userStatsModal').modal('hide');
+    this.statsModalUser = null;
+    this.statsData = null;
+    this.statsChartData = null;
+    this.statsChartOptions = null;
+    this.statsError = null;
+    this.statsLoading = false;
+  }
+
+  private prepareStatsChart(stats: UserActivityStats) {
+    const demandes = stats?.demandesAchat || [];
+    const receptions = stats?.receptions || [];
+    const consommations = stats?.consommations || [];
+
+    const labels = demandes.map(point => this.formatMonthLabel(point.month));
+
+    this.statsChartData = {
+      labels,
+      datasets: [
+        {
+          label: 'Demandes d\'achat',
+          data: demandes.map(point => point.count),
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13, 110, 253, 0.15)',
+          tension: 0.3,
+          fill: true,
+          pointRadius: 4
+        },
+        {
+          label: 'Réceptions',
+          data: receptions.map(point => point.count),
+          borderColor: '#20c997',
+          backgroundColor: 'rgba(32, 201, 151, 0.15)',
+          tension: 0.3,
+          fill: true,
+          pointRadius: 4
+        },
+        {
+          label: 'Consommations',
+          data: consommations.map(point => point.count),
+          borderColor: '#ffc107',
+          backgroundColor: 'rgba(255, 193, 7, 0.2)',
+          tension: 0.3,
+          fill: true,
+          pointRadius: 4
+        }
+      ]
+    };
+
+    this.statsChartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom'
+        },
+        tooltip: {
+          callbacks: {
+            title: (items) => items[0]?.label || ''
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            precision: 0,
+            stepSize: 1
+          }
+        },
+        x: {
+          ticks: {
+            maxRotation: 0,
+            autoSkip: true
+          }
+        }
+      }
+    };
+  }
+
+  private formatMonthLabel(value: string | undefined): string {
+    if (!value) {
+      return '';
+    }
+    const [year, month] = value.split('-').map(v => parseInt(v, 10));
+    if (isNaN(year) || isNaN(month)) {
+      return value;
+    }
+    const date = new Date(year, month - 1);
+    return date.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
+  hasNoChartData(): boolean {
+    if (!this.statsChartData?.datasets) {
+      return true;
+    }
+    return this.statsChartData.datasets.every(dataset => {
+      const data = dataset.data as number[];
+      return data.every(value => value === 0);
+    });
+  }
+
+  creerLiaison() {
+    
   }
 }

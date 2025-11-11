@@ -10,6 +10,7 @@ import com.agileo.AGILEO.message.ResponseMessage;
 import com.agileo.AGILEO.repository.primary.*;
 import com.agileo.AGILEO.service.DemandeAchatService;
 import com.agileo.AGILEO.service.DivaltoIntegrationDAService; // ✅ NOUVEAU IMPORT
+import com.agileo.AGILEO.repository.primary.AffaireDisplayRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +34,7 @@ public class DemandeAchatImpService implements DemandeAchatService {
     private final DemandeAchatRepository userRepository;
     private final UserServiceImpl userService;
     private final KdnFileRepository kdnFileRepository;
+    private final AffaireDisplayRepository affaireDisplayRepository;
 
     // ✅ NOUVEAU : Injection du service d'intégration Divalto
     @Autowired
@@ -44,7 +46,8 @@ public class DemandeAchatImpService implements DemandeAchatService {
                                   KdnsAccessorRepository kdnsAccessorRepository,
                                   DemandeAchatRepository userRepository,
                                   UserServiceImpl userService,
-                                  KdnFileRepository kdnFileRepository) {
+                                  KdnFileRepository kdnFileRepository,
+                                  AffaireDisplayRepository affaireDisplayRepository) {
         this.demandeAchatRepository = demandeAchatRepository;
         this.ligneDemandeRepository = ligneDemandeRepository;
         this.affaireRepository = affaireRepository;
@@ -52,6 +55,7 @@ public class DemandeAchatImpService implements DemandeAchatService {
         this.userRepository = userRepository;
         this.userService = userService;
         this.kdnFileRepository = kdnFileRepository;
+        this.affaireDisplayRepository = affaireDisplayRepository;
     }
 
     // ... (autres méthodes inchangées) ...
@@ -154,7 +158,7 @@ public class DemandeAchatImpService implements DemandeAchatService {
     public PagedResponse<DemandeAchatResponseDTO> findAllDemandesPaginated(
             int page, int size, String sortBy, String sortDirection) {
         if (page < 0) page = 0;
-        if (size <= 0 || size > 20) size = 20;
+        if (size <= 0 || size > 100) size = 20;
         if (sortBy == null || sortBy.isEmpty()) sortBy = "id";
         Sort.Direction direction = sortDirection != null && sortDirection.equalsIgnoreCase("desc")
                 ? Sort.Direction.DESC : Sort.Direction.ASC;
@@ -227,7 +231,7 @@ public class DemandeAchatImpService implements DemandeAchatService {
             }
 
             if (page < 0) page = 0;
-            if (size <= 0 || size > 20) size = 20;
+            if (size <= 0 || size > 100) size = 20;
             if (sortBy == null || sortBy.isEmpty()) sortBy = "id";
             Sort.Direction direction = sortDirection != null && sortDirection.equalsIgnoreCase("desc")
                     ? Sort.Direction.DESC : Sort.Direction.ASC;
@@ -627,11 +631,11 @@ public class DemandeAchatImpService implements DemandeAchatService {
         Map<String, String> affaireLibelles = new HashMap<>();
         if (!chantierCodes.isEmpty()) {
             List<String> chantierList = new ArrayList<>(chantierCodes);
-            List<Affaire> affaires = affaireRepository.findByAffaireIn(chantierList);
-            affaireLibelles = affaires.stream()
+            // Utiliser AffairesDisplay pour l'affichage (pas de filtre SAISAUTTYP)
+            affaireLibelles = affaireDisplayRepository.findAllById(chantierList).stream()
                     .collect(Collectors.toMap(
-                            Affaire::getAffaire,
-                            Affaire::getLibelle,
+                            AffaireDisplay::getAffaire,
+                            AffaireDisplay::getLibelle,
                             (existing, replacement) -> existing
                     ));
         }

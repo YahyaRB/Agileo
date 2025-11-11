@@ -3,6 +3,7 @@ package com.agileo.AGILEO.service;
 import com.agileo.AGILEO.Dtos.request.UserRequestDTO;
 import com.agileo.AGILEO.Dtos.response.AccessResponseDTO;
 import com.agileo.AGILEO.Dtos.response.RoleResponseDTO;
+import com.agileo.AGILEO.Dtos.response.UserActivityStatsDTO;
 import com.agileo.AGILEO.Dtos.response.UserResponseDTO;
 import com.agileo.AGILEO.entity.secondary.User;
 import com.agileo.AGILEO.message.ResponseMessage;
@@ -60,4 +61,6 @@ public interface UserService {
     List<UserResponseDTO> searchUsers(String searchTerm);
     List<UserResponseDTO> getActiveUserss(); // Cette méthode retourne List<UserResponseDTO>
     List<UserResponseDTO> getInactiveUsers();
+
+    UserActivityStatsDTO getUserActivityStats(Long userId);
 }

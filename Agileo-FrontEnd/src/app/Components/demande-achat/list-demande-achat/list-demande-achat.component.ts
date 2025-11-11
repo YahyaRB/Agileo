@@ -58,13 +58,13 @@ export class ListDemandeAchatComponent implements OnInit,OnDestroy {
   // Pagination
   page: number = 1;
   count: number = 0;
-  tableSize: number = 10;
-  tableSizes: number[] = [5, 10, 15, 20];
+  tableSize: number = 20;
+  tableSizes: number[] = [10, 20, 50, 100];
 // NOUVELLE PAGINATION
   pagedResponse: PagedResponse<IDemandeAchat> | null = null;
   paginationParams: PaginationParams = {
     page: 0, // Spring Boot commence à 0
-    size: 10,
+    size: 20,
     sortBy: 'id',
     sortDirection: 'desc'
   };
@@ -621,11 +621,13 @@ export class ListDemandeAchatComponent implements OnInit,OnDestroy {
     this.loadDemandesAchat();
   }
 
-  onTableSizeChange(event: any): void {
-    const newSize = parseInt(event.target.value);
-    this.paginationParams.size = newSize;
-    this.paginationParams.page = 0;
-    this.loadDemandesAchat();
+  onTableSizeChange(newSize: number): void {
+    if (typeof newSize === 'number' && !isNaN(newSize)) {
+      this.tableSize = newSize;
+      this.paginationParams.size = newSize;
+      this.paginationParams.page = 0;
+      this.loadDemandesAchat();
+    }
   }
 
 

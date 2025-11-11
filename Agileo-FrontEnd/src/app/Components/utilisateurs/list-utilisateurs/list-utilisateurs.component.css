@@ -353,3 +353,49 @@ th button {
 th button i {
   color: #108efb;
 }
+
+/* ====== Filtres Rôle & Statut (style bouton) ====== */
+.filter-chip {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e6e8ef;
+  border-radius: 9999px;
+  height: 38px;
+  padding: 0 10px;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.filter-chip:hover {
+  box-shadow: 0 2px 8px rgba(16, 142, 251, 0.15);
+  border-color: #d9e6ff;
+}
+.filter-chip .fa {
+  color: #108efb;
+}
+
+/* Harmoniser ng-select pour l’apparence bouton */
+:host ::ng-deep .filter-select.ng-select .ng-select-container {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  min-height: 36px;
+  height: 36px;
+  padding: 0;
+}
+:host ::ng-deep .filter-select .ng-value-container {
+  padding: 0 0 0 0 !important;
+}
+:host ::ng-deep .filter-select .ng-input {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+:host ::ng-deep .filter-select .ng-clear-wrapper,
+:host ::ng-deep .filter-select .ng-arrow-wrapper {
+  width: 20px;
+}
+:host ::ng-deep .filter-select .ng-arrow {
+  border-color: #108efb transparent transparent transparent !important;
+}
+:host ::ng-deep .filter-select .ng-placeholder {
+  color: #6c757d !important;
+}

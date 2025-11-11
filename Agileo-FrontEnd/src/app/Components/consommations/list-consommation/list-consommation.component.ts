@@ -46,8 +46,8 @@ export class ListConsommationComponent implements OnInit, OnDestroy, AfterViewIn
   pfiltre: any;
   page: number = 1;
   count: number = 0;
-  tableSize: number = 10;
-  tableSizes: any = [5, 10, 15, 20];
+  tableSize: number = 20;
+  tableSizes: any = [10, 20, 50, 100];
 
   constructor(
     private affaireService: AffaireServiceService,
@@ -206,10 +206,12 @@ export class ListConsommationComponent implements OnInit, OnDestroy, AfterViewIn
             const dateB = new Date(b.createdDate || 0);
             return dateB.getTime() - dateA.getTime();
           });
+          this.count = this.listConsommations?.length || 0;
         },
         error: err => {
           console.log('Erreur chargement toutes consommations:', err);
           this.listConsommations = [];
+          this.count = 0;
         }
       });
     } else if (this.currentUser?.login) {
@@ -220,6 +222,7 @@ export class ListConsommationComponent implements OnInit, OnDestroy, AfterViewIn
             const dateB = new Date(b.createdDate || 0);
             return dateB.getTime() - dateA.getTime();
           });
+          this.count = this.listConsommations?.length || 0;
         },
         error: err => {
           console.log('Erreur consommations utilisateur:', err);
@@ -233,10 +236,12 @@ export class ListConsommationComponent implements OnInit, OnDestroy, AfterViewIn
                   const dateB = new Date(b.createdDate || 0);
                   return dateB.getTime() - dateA.getTime();
                 });
+                this.count = this.listConsommations?.length || 0;
               },
               error: err2 => {
                 console.log('Erreur fallback:', err2);
                 this.listConsommations = [];
+                this.count = 0;
               }
             });
           }
@@ -245,6 +250,7 @@ export class ListConsommationComponent implements OnInit, OnDestroy, AfterViewIn
     } else {
       this.listConsommations = [];
       console.warn('Utilisateur non identifié - aucune consommation chargée');
+      this.count = 0;
     }
   }
 
@@ -555,6 +561,13 @@ export class ListConsommationComponent implements OnInit, OnDestroy, AfterViewIn
   onTableDataChange(event: any) {
     this.page = event;
     this.loadConsommations();
+  }
+  onTableSizeChange(event: any): void {
+    const newSize = parseInt(event?.target?.value ?? event, 10);
+    if (!isNaN(newSize)) {
+      this.tableSize = newSize;
+      this.page = 1;
+    }
   }
 
   sortColumn(column: string) {

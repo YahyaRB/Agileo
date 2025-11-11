@@ -30,7 +30,6 @@
         <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
 
           <div class="d-flex align-items-center gap-2 flex-nowrap">
-            <!-- Champ de recherche -->
             <div class="input-group border rounded-pill px-3 py-2 mr-2" style="min-width: 250px;">
     <span style="font-size: 20px; margin-right: 5px;">
       <i class="fa fa-search"></i>
@@ -39,13 +38,12 @@
                      style="box-shadow: none; outline: none;" [(ngModel)]="pfiltre">
             </div>
 
-            <!-- Filtre par rôle -->
-            <div class="d-flex align-items-center rounded-pill border px-2 py-0 bg-white mr-2" style="max-width: 300px;">
+            <div class="filter-chip mr-2" style="max-width: 300px;">
     <span style="font-size: 20px; margin-right: 10px;">
       <i class="fa fa-user-tag"></i>
     </span>
               <ng-select
-                class="custom-theme flex-grow-1"
+                class="filter-select flex-grow-1"
                 [items]="listeRoles"
                 bindLabel="name"
                 bindValue="name"
@@ -57,13 +55,12 @@
               </ng-select>
             </div>
 
-            <!-- Filtre par statut -->
-            <div class="d-flex align-items-center rounded-pill border px-2 py-0 bg-white mr-2" style="max-width: 300px;">
+            <div class="filter-chip mr-2" style="max-width: 300px;">
     <span style="font-size: 20px; margin-right: 10px;">
       <i class="fa fa-toggle-on"></i>
     </span>
               <ng-select
-                class="custom-theme flex-grow-1"
+                class="filter-select flex-grow-1"
                 [items]="listeStatus"
                 bindLabel="name"
                 bindValue="name"
@@ -100,7 +97,6 @@
                   <i class="fa fa-users text-info"></i> Gestion des Rôles
                 </a>
               </li>
-              <!-- ✅ NOUVEAU: Option pour gérer les liaisons User-Accessor -->
               <li>
                 <a type="button" class="pl-3 py-1" (click)="openGestionLiaisons()">
                   <i class="fa fa-link text-warning"></i> Gestion des Liaisons
@@ -178,7 +174,6 @@
               <td>{{user.prenom}}</td>
               <td>{{user.email}}</td>
 
-              <!-- ✅ NOUVELLE CELLULE: Affichage de l'accessor lié -->
               <td>
                 <span *ngIf="hasAccessorLink(user.id)" class="tag tag-success">
                   <i class="fa fa-link mr-1"></i>
@@ -213,89 +208,108 @@
                     </div>
                   </button>
 
-                  <!-- Menu dropdown -->
                   <div
                     class="dropdown-content"
                     [class.show]="isDropdownOpen(user)"
                     role="menu">
 
-                    <!-- ✅ MODIFIÉ: Affaires seulement si accessor lié -->
-                    <a
-                      *ngIf="hasAccessorLink(user.id)"
-                      class="dropdown-item"
-                      (click)="affectAffaire(user)"
-                      role="menuitem"
-                      tabindex="0">
-                      <i class="icon icon-building"></i>
-                      Affaires
+                    <a class="dropdown-item"
+                       (click)="openUserStats(user)"
+                       role="menuitem"
+                       tabindex="0">
+                      <i class="icon icon-pie-chart"></i>
+                      Statistiques
                     </a>
-                    <a
-                      *ngIf="!hasAccessorLink(user.id)"
-                      class="dropdown-item disabled"
-                      title="Veuillez d'abord lier cet utilisateur à un accessor"
-                      role="menuitem"
-                      tabindex="-1">
-                      <i class="icon icon-building text-muted"></i>
-                      <span class="text-muted">Affaires (non disponible)</span>
-                    </a>
-                    <button #btnFake class="d-none" data-toggle="modal" data-target="#affectAffaireModal"></button>
 
-                    <a
-                      class="dropdown-item"
-                      (click)="affectAccess(user)"
-                      role="menuitem"
-                      tabindex="0">
+                    <ng-container *ngIf="hasAccessorLink(user.id)">
+                      <a class="dropdown-item"
+                         (click)="affectAffaire(user)"
+                         role="menuitem"
+                         tabindex="0">
+                        <i class="icon icon-building"></i>
+                        Affaires
+                      </a>
+                    </ng-container>
+
+                    <ng-container *ngIf="!hasAccessorLink(user.id)">
+                      <a class="dropdown-item disabled"
+                         title="Veuillez d'abord lier cet utilisateur à un accessor"
+                         role="menuitem"
+                         tabindex="-1">
+                        <i class="icon icon-building text-muted"></i>
+                        <span class="text-muted">Affaires (non disponible)</span>
+                      </a>
+                    </ng-container>
+
+                    <a class="dropdown-item"
+                       (click)="affectAccess(user)"
+                       role="menuitem"
+                       tabindex="0">
                       <i class="icon icon-access"></i>
                       Accès
                     </a>
-                    <button #btnFake class="d-none" data-toggle="modal" data-target="#affectAccessModal"></button>
 
-                    <a
-                      class="dropdown-item"
-                      (click)="affectRole(user)"
-                      role="menuitem"
-                      tabindex="0">
+                    <a class="dropdown-item"
+                       (click)="affectRole(user)"
+                       role="menuitem"
+                       tabindex="0">
                       <i class="icon icon-users"></i>
                       Rôles
                     </a>
 
-
                     <div class="dropdown-divider"></div>
 
-                    <a
-                      *ngIf="!isUserActive(user)"
-                      class="dropdown-item text-success"
-                      (click)="activerUtilisateur(user)"
-                      role="menuitem"
-                      tabindex="0">
-                      <i class="icon icon-check-circle"></i>
-                      Activer
-                    </a>
+                    <ng-container *ngIf="!isUserActive(user)">
+                      <a class="dropdown-item text-success"
+                         (click)="activerUtilisateur(user)"
+                         role="menuitem"
+                         tabindex="0">
+                        <i class="icon icon-check-circle"></i>
+                        Activer
+                      </a>
+                    </ng-container>
 
-                    <a
-                      *ngIf="isUserActive(user)"
-                      class="dropdown-item text-danger"
-                      (click)="desactiverUtilisateur(user)"
-                      role="menuitem"
-                      tabindex="0">
-                      <i class="icon icon-x-circle"></i>
-                      Désactiver
-                    </a>
-
-                    <button #btnFake class="d-none" data-toggle="modal" data-target="#affectRoleModal"></button>
+                    <ng-container *ngIf="isUserActive(user)">
+                      <a class="dropdown-item text-danger"
+                         (click)="desactiverUtilisateur(user)"
+                         role="menuitem"
+                         tabindex="0">
+                        <i class="icon icon-x-circle"></i>
+                        Désactiver
+                      </a>
+                    </ng-container>
                   </div>
                 </div>
+
+                <button #btnFake class="d-none" data-toggle="modal" data-target="#affectAffaireModal"></button>
+                <button #btnFake class="d-none" data-toggle="modal" data-target="#affectAccessModal"></button>
+                <button #btnFake class="d-none" data-toggle="modal" data-target="#affectRoleModal"></button>
               </td>
             </tr>
             </tbody>
           </table>
 
-          <div class="pagination-wrapper mt-3 d-flex justify-content-center">
+          <div class="mt-3 d-flex justify-content-between align-items-center" *ngIf="users && users.length">
+            <div class="d-flex align-items-center">
+              <label class="mr-2">Afficher :</label>
+              <select class="form-control" style="width: auto;" [ngModel]="tableSize" (ngModelChange)="onTableSizeChange($event)">
+                <option [ngValue]="10">10</option>
+                <option [ngValue]="20">20</option>
+                <option [ngValue]="50">50</option>
+                <option [ngValue]="100">100</option>
+              </select>
+              <span class="ml-2">éléments par page</span>
+            </div>
+
             <pagination-controls
               previousLabel="Précédent"
               nextLabel="Suivant"
               (pageChange)="onTableDataChange($event)">
             </pagination-controls>
+
+            <div class="text-muted">
+              Total: {{ count }} utilisateur(s)
+            </div>
           </div>
         </div>
       </div>
@@ -303,7 +317,55 @@
   </div>
 </div>
 
-<!------------------------✅ NOUVEAU Modal Créer Liaison ----------------------------->
+<div class="modal fade" id="userStatsModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fa fa-chart-line mr-2"></i>
+          Statistiques utilisateur
+        </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Fermer" (click)="closeStatsModal()">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div *ngIf="statsModalUser" class="mb-3">
+          <h6 class="mb-1">{{statsModalUser.nom}} {{statsModalUser.prenom}}</h6>
+          <small class="text-muted">Activité des 12 derniers mois</small>
+        </div>
+
+        <div *ngIf="statsLoading" class="text-center my-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-3 mb-0">Chargement des statistiques...</p>
+        </div>
+
+        <div *ngIf="!statsLoading && statsError" class="alert alert-danger" role="alert">
+          {{statsError}}
+        </div>
+
+        <div *ngIf="!statsLoading && !statsError" class="chart-container" style="height: 360px;">
+          <canvas
+            *ngIf="statsChartData && statsChartOptions"
+            baseChart
+            [data]="statsChartData"
+            [options]="statsChartOptions"
+            [type]="'line'">
+          </canvas>
+          <div
+            *ngIf="hasNoChartData()"
+            class="text-center text-muted mt-4">
+            Aucune activité enregistrée sur la période sélectionnée.
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeStatsModal()">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="creerLiaisonModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
@@ -318,7 +380,6 @@
       </div>
       <div class="modal-body" *ngIf="userSelected">
         <div class="row">
-          <!-- Informations utilisateur sélectionné -->
           <div class="col-md-6">
             <div class="card border-primary">
               <div class="card-header bg-primary text-white">
@@ -337,7 +398,6 @@
             </div>
           </div>
 
-          <!-- Sélection d'accessor -->
           <div class="col-md-6">
             <div class="card border-success">
               <div class="card-header bg-success text-white">
@@ -349,13 +409,13 @@
               <div class="card-body">
                 <div class="form-group">
                   <label for="accessorSelect">Accessor ID</label>
-<!--                  <input-->
-<!--                    type="number"-->
-<!--                    id="accessorSelect"-->
-<!--                    class="form-control"-->
-<!--                    [(ngModel)]="selectedAccessorId"-->
-<!--                    placeholder="Saisissez l'ID de l'accessor"-->
-<!--                    min="1">-->
+                  <input
+                    type="number"
+                    id="accessorSelect"
+                    class="form-control"
+                    [(ngModel)]="selectedAccessorId"
+                    placeholder="Saisissez l'ID de l'accessor"
+                    min="1">
                   <small class="form-text text-muted">
                     Entrez l'ID de l'accessor à lier avec cet utilisateur
                   </small>
@@ -370,7 +430,6 @@
           </div>
         </div>
 
-        <!-- Actions -->
         <div class="row mt-3">
           <div class="col-12 text-right">
             <button
@@ -380,18 +439,18 @@
               <i class="fa fa-times mr-1"></i>
               Annuler
             </button>
-<!--            <button-->
-<!--              type="button"-->
-<!--              class="btn btn-success"-->
-<!--              (click)="creerLiaison()"-->
-<!--              [disabled]="!selectedAccessorId || isLoading">-->
-<!--              <i class="fa fa-link mr-1"></i>-->
-<!--              <span *ngIf="!isLoading">Créer la Liaison</span>-->
-<!--              <span *ngIf="isLoading">-->
-<!--                <i class="fa fa-spinner fa-spin"></i>-->
-<!--                Création...-->
-<!--              </span>-->
-<!--            </button>-->
+            <button
+              type="button"
+              class="btn btn-success"
+              (click)="creerLiaison()"
+              [disabled]="!selectedAccessorId || isLoading">
+              <i class="fa fa-link mr-1"></i>
+              <span *ngIf="!isLoading">Créer la Liaison</span>
+              <span *ngIf="isLoading">
+                <i class="fa fa-spinner fa-spin"></i>
+                Création...
+              </span>
+            </button>
           </div>
         </div>
       </div>
@@ -400,7 +459,6 @@
 </div>
 
 
-<!------------------------Modal Affect Access ----------------------------->
 <div class="modal fade" id="affectAccessModal" tabindex="-1" role="dialog" aria-hidden="true">
   <app-affectation-user-access
     *ngIf="showModal"
@@ -408,7 +466,6 @@
   ></app-affectation-user-access>
 </div>
 
-<!------------------------Modal Affect Role ----------------------------->
 <div class="modal fade" id="affectRoleModal" tabindex="-1" role="dialog" aria-hidden="true">
   <app-affectation-user-role
     *ngIf="showModal"
@@ -416,7 +473,6 @@
   ></app-affectation-user-role>
 </div>
 
-<!------------------------Modal Gestion Access ----------------------------->
 <div class="modal fade" id="gestionAccessModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
@@ -428,7 +484,6 @@
       </div>
       <div class="modal-body">
         <div class="row">
-          <!-- Liste des accès existants -->
           <div class="col-md-8">
             <h6>Liste des Accès</h6>
             <div class="table-responsive">
@@ -455,7 +510,6 @@
             </div>
           </div>
 
-          <!-- Formulaire d'ajout -->
           <div class="col-md-4">
             <h6>Ajouter un Accès</h6>
             <form (ngSubmit)="ajouterAccess()">
@@ -473,7 +527,6 @@
 </div>
 
 
-<!------------------------Modal Gestion Roles ----------------------------->
 <div class="modal fade" id="gestionRolesModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
@@ -485,7 +538,6 @@
       </div>
       <div class="modal-body">
         <div class="row">
-          <!-- Liste des rôles existants -->
           <div class="col-md-8">
             <h6>Liste des Rôles</h6>
             <div class="table-responsive">
@@ -512,7 +564,6 @@
             </div>
           </div>
 
-          <!-- Formulaire d'ajout -->
           <div class="col-md-4">
             <h6>Ajouter un Rôle</h6>
             <form (ngSubmit)="ajouterRole()">

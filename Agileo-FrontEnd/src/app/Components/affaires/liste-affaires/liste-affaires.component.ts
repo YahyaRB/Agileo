@@ -27,9 +27,9 @@ export class ListeAffairesComponent implements OnInit, OnChanges, OnDestroy {
   // Pagination
   page: number = 1;
   count: number = 0;
-  tableSize: number = 10;
+  tableSize: number = 20;
   sort = { field: '', direction: 'asc' as 'asc' | 'desc' };
-  tableSizes: any = [5, 10, 15, 20];
+  tableSizes: any = [10, 20, 50, 100];
 
   // Propriétés pour la gestion du dropdown
   openDropdownIndex: number | null = null;

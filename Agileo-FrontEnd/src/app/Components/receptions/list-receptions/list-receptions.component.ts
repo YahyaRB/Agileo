@@ -80,12 +80,12 @@ export class ListReceptionsComponent implements OnInit, OnDestroy {
   sort = {field: '', direction: 'asc' as 'asc' | 'desc'};
   page: number = 1;
   count: number = 0;
-  tableSize: number = 10;
+  tableSize: number = 20;
 
   pagedResponse: PagedResponse<IReception> | null = null;
   paginationParams: PaginationParams = {
     page: 0,
-    size: 10,
+    size: 20,
     sortBy: 'numero',
     sortDirection: 'desc'
   };
@@ -182,6 +182,15 @@ export class ListReceptionsComponent implements OnInit, OnDestroy {
 
     // Toujours recharger depuis le serveur (avec ou sans filtre)
     this.loadReceptions();
+  }
+  onTableSizeChange(newSize: number): void {
+    if (typeof newSize === 'number' && !isNaN(newSize)) {
+      this.tableSize = newSize;
+      this.paginationParams.size = newSize;
+      this.page = 1;
+      this.paginationParams.page = 0;
+      this.loadReceptions();
+    }
   }
   canAddMoreFiles(): boolean {
     const currentFilesCount = this.listPiecesJointes ? this.listPiecesJointes.length : 0;

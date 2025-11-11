@@ -30,4 +30,11 @@ public interface DemandeAchatRepository extends JpaRepository<DemandeAchat, Inte
     @Query("SELECT count(c) FROM DemandeAchat c WHERE c.login = :login")
     Long countTotalDAByLogin(@Param("login") Integer login);
 
+    @Query("SELECT FUNCTION('YEAR', d.dateDa) AS yr, FUNCTION('MONTH', d.dateDa) AS mn, COUNT(d) " +
+            "FROM DemandeAchat d " +
+            "WHERE d.login = :login AND d.dateDa IS NOT NULL AND d.dateDa >= :startDate " +
+            "GROUP BY FUNCTION('YEAR', d.dateDa), FUNCTION('MONTH', d.dateDa) " +
+            "ORDER BY FUNCTION('YEAR', d.dateDa), FUNCTION('MONTH', d.dateDa)")
+    List<Object[]> countMonthlyByLogin(@Param("login") Integer login, @Param("startDate") LocalDateTime startDate);
+
 }

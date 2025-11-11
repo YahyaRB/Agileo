@@ -2,7 +2,9 @@ package com.agileo.AGILEO.service.Impl;
 
 import com.agileo.AGILEO.Dtos.request.UserRequestDTO;
 import com.agileo.AGILEO.Dtos.response.AccessResponseDTO;
+import com.agileo.AGILEO.Dtos.response.MonthlyCountDTO;
 import com.agileo.AGILEO.Dtos.response.RoleResponseDTO;
+import com.agileo.AGILEO.Dtos.response.UserActivityStatsDTO;
 import com.agileo.AGILEO.Dtos.response.UserResponseDTO;
 import com.agileo.AGILEO.entity.primary.KdnsAccessor;
 import com.agileo.AGILEO.entity.secondary.Acces;
@@ -10,7 +12,10 @@ import com.agileo.AGILEO.entity.secondary.Role;
 import com.agileo.AGILEO.entity.secondary.User;
 import com.agileo.AGILEO.exception.*;
 import com.agileo.AGILEO.message.ResponseMessage;
+import com.agileo.AGILEO.repository.primary.ConsommationRepository;
+import com.agileo.AGILEO.repository.primary.DemandeAchatRepository;
 import com.agileo.AGILEO.repository.primary.KdnsAccessorRepository;
+import com.agileo.AGILEO.repository.primary.ReceptionRepository;
 import com.agileo.AGILEO.repository.secondary.AccesRepository;
 import com.agileo.AGILEO.repository.secondary.RoleRepository;
 import com.agileo.AGILEO.repository.secondary.UserRepository;
@@ -25,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -38,19 +44,28 @@ public class UserServiceImpl implements UserService {
     private final KdnsAccessorRepository kdnsAccessorRepository;
     private final PasswordEncoder passwordEncoder;
     private final KeycloakAdminService keycloakAdminService;
+    private final DemandeAchatRepository demandeAchatRepository;
+    private final ReceptionRepository receptionRepository;
+    private final ConsommationRepository consommationRepository;
 
     public UserServiceImpl(UserRepository userRepository,
                            RoleRepository roleRepository,
                            AccesRepository accesRepository,
                            KdnsAccessorRepository kdnsAccessorRepository,
                            PasswordEncoder passwordEncoder,
-                           KeycloakAdminService keycloakAdminService) {
+                           KeycloakAdminService keycloakAdminService,
+                           DemandeAchatRepository demandeAchatRepository,
+                           ReceptionRepository receptionRepository,
+                           ConsommationRepository consommationRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.accesRepository = accesRepository;
         this.kdnsAccessorRepository = kdnsAccessorRepository;
         this.passwordEncoder = passwordEncoder;
         this.keycloakAdminService = keycloakAdminService;
+        this.demandeAchatRepository = demandeAchatRepository;
+        this.receptionRepository = receptionRepository;
+        this.consommationRepository = consommationRepository;
     }
 
     // ============ MÉTHODES POUR KEYCLOAK AUTHENTICATION ============
@@ -502,6 +517,32 @@ public class UserServiceImpl implements UserService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public UserActivityStatsDTO getUserActivityStats(Long userId) {
+        User user = getUserById(userId);
+        Integer accessorId = resolveAccessorId(user);
+
+        YearMonth currentMonth = YearMonth.now();
+        YearMonth startMonth = currentMonth.minusMonths(11);
+        LocalDateTime startDate = startMonth.atDay(1).atStartOfDay();
+
+        Map<YearMonth, Long> demandesCounts = accessorId != null
+                ? toMonthlyMap(demandeAchatRepository.countMonthlyByLogin(accessorId, startDate))
+                : Collections.emptyMap();
+        Map<YearMonth, Long> receptionsCounts = accessorId != null
+                ? toMonthlyMap(receptionRepository.countMonthlyByCreator(accessorId, startDate))
+                : Collections.emptyMap();
+        Map<YearMonth, Long> consommationsCounts = accessorId != null
+                ? toMonthlyMap(consommationRepository.countMonthlyByLogin(accessorId, startDate))
+                : Collections.emptyMap();
+
+        UserActivityStatsDTO dto = new UserActivityStatsDTO();
+        dto.setDemandesAchat(buildSeries(demandesCounts, startMonth));
+        dto.setReceptions(buildSeries(receptionsCounts, startMonth));
+        dto.setConsommations(buildSeries(consommationsCounts, startMonth));
+        return dto;
+    }
+
     // ============ MÉTHODES KEYCLOAK ============
 
     @Override
@@ -641,6 +682,66 @@ public class UserServiceImpl implements UserService {
     }
 
     // ============ MÉTHODES PRIVÉES HELPER ============
+
+    private Map<YearMonth, Long> toMonthlyMap(List<Object[]> rawResults) {
+        Map<YearMonth, Long> map = new HashMap<>();
+        if (rawResults == null) {
+            return map;
+        }
+        for (Object[] row : rawResults) {
+            if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) {
+                continue;
+            }
+            try {
+                int year = ((Number) row[0]).intValue();
+                int month = ((Number) row[1]).intValue();
+                long count = ((Number) row[2]).longValue();
+                map.put(YearMonth.of(year, month), count);
+            } catch (Exception ignored) {
+            }
+        }
+        return map;
+    }
+
+    private List<MonthlyCountDTO> buildSeries(Map<YearMonth, Long> counts, YearMonth startMonth) {
+        List<MonthlyCountDTO> series = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            YearMonth current = startMonth.plusMonths(i);
+            Long value = counts != null ? counts.getOrDefault(current, 0L) : 0L;
+            series.add(new MonthlyCountDTO(current.toString(), value));
+        }
+        return series;
+    }
+
+    private Integer resolveAccessorId(User user) {
+        if (user == null) {
+            return null;
+        }
+        try {
+            Optional<KdnsAccessor> accessorOpt = kdnsAccessorRepository.findByLogin(user.getLogin());
+            if (accessorOpt.isPresent() && accessorOpt.get().getAccessorId() != null) {
+                return accessorOpt.get().getAccessorId();
+            }
+        } catch (Exception ignored) {
+        }
+
+        Integer parsed = parseInteger(user.getIdAgelio());
+        if (parsed != null) {
+            return parsed;
+        }
+        return parseInteger(user.getLogin());
+    }
+
+    private Integer parseInteger(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(value.trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
 
     private User getUserById(Long id) {
         return userRepository.findById(id)

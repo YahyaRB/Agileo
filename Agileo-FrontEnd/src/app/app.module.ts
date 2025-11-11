@@ -26,6 +26,7 @@ import { DeleteAffaireComponent } from './Components/affaires/delete-affaire/del
 import { MatMenuModule } from '@angular/material/menu';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { NgChartsModule } from 'ng2-charts';
 import { AffaireDemandeAchatComponent } from './Components/affaires/affaire-demande-achat/affaire-demande-achat.component';
 import { AffaireReceptionComponent } from './Components/affaires/affaire-reception/affaire-reception.component';
 import { AffaireConsommationComponent } from './Components/affaires/affaire-consommation/affaire-consommation.component';
@@ -131,6 +132,7 @@ function initializeKeycloak(keycloak: KeycloakService) {
     MatMenuModule,
     MatIconModule,
     MatButtonModule,
+    NgChartsModule,
     RouterModule,
   ],
   providers: [

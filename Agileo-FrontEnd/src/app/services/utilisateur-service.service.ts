@@ -7,6 +7,7 @@ import { Access } from "../../interfaces/iaccess";
 import { Affaire } from "../../interfaces/iaffaire";
 import { Role } from "../../interfaces/irole";
 import {catchError, map} from "rxjs/operators";
+import { UserActivityStats } from "../../interfaces/iuser-activity-stats";
 
 const AUTH_API2 = 'admin/users';
 const ACCESSOR_API = 'admin/accessors';
@@ -289,5 +290,9 @@ export class UtilisateurServiceService {
 
   removeAffaireFromAccessor(accessorId: number, affaireCode: string): Observable<any> {
     return this.http.delete(`${environment.apiUrl}affaires/code/${affaireCode}/accessors/${accessorId}`, httpOptions);
+  }
+
+  getUserActivityStats(userId: number): Observable<UserActivityStats> {
+    return this.http.get<UserActivityStats>(`${environment.apiUrl}${AUTH_API2}/${userId}/activity-stats`);
   }
 }

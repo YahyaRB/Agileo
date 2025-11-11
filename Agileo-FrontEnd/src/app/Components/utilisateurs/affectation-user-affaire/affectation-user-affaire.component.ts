@@ -29,14 +29,14 @@ export class AffectationUserAffaireComponent implements OnInit, OnChanges {
   pfiltre: any;
   page: number = 1;
   count: number = 0;
-  tableSize: number = 10;
-  tableSizes: any = [5, 10, 15, 20];
+  tableSize: number = 20;
+  tableSizes: any = [10, 20, 50, 100];
   //Pour affaires attribuer
   pfiltreAttr: any;
   pageAttr: number = 1;
   countAttr: number = 0;
-  tableSizeAttr: number = 10;
-  tableSizesAttr: any = [5, 10, 15, 20];
+  tableSizeAttr: number = 20;
+  tableSizesAttr: any = [10, 20, 50, 100];
   constructor(
     private affaireService: AffaireServiceService,
     private notifyService: NotificationService,

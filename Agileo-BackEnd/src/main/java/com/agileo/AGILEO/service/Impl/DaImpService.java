@@ -5,21 +5,19 @@ import com.agileo.AGILEO.Dtos.response.ArticleDTO;
 import com.agileo.AGILEO.Dtos.response.CommandeResponseDTO;
 import com.agileo.AGILEO.Dtos.response.PagedResponse;
 import com.agileo.AGILEO.entity.primary.ArticleErp;
-import com.agileo.AGILEO.entity.primary.ArticleReception;
 import com.agileo.AGILEO.entity.primary.Commande;
+import com.agileo.AGILEO.repository.primary.AffaireDisplayRepository;
 import com.agileo.AGILEO.repository.primary.ArticleErpRepository;
 import com.agileo.AGILEO.repository.primary.ArticleReceptionRepository;
 import com.agileo.AGILEO.repository.primary.CommandeRepository;
 import com.agileo.AGILEO.service.DaService;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,6 +27,7 @@ public class DaImpService implements DaService {
     private ArticleErpRepository articleErpRepository;
     private final CommandeRepository commandeRepository;
     public final ArticleReceptionRepository articleReceptionRepository;
+    private final AffaireDisplayRepository affaireDisplayRepository;
 
     @Override
     public PagedResponse<ArticleDTO> getAllArticles(Pageable pageable) {
@@ -99,7 +98,6 @@ public class DaImpService implements DaService {
 
     @Override
     public List<AffaireReceptionResponseDTO> getArticleReceptionByCommandeID(Long commande) {
-        List<ArticleReception> articleByCommande = articleReceptionRepository.findArticleReceptionsByCommande(commande);
         return Collections.emptyList();
     }
 
@@ -140,6 +138,11 @@ public class DaImpService implements DaService {
         dto.setFournisseurId(commande.getFournisseurId());
         dto.setAffaireCode(commande.getAffaireCode());
         dto.setAffaireName(commande.getAffaireName());
+        // Remplacer le libellé par celui de AffairesDisplay si disponible
+        if (commande.getAffaireCode() != null && !commande.getAffaireCode().trim().isEmpty()) {
+            affaireDisplayRepository.findById(commande.getAffaireCode().trim())
+                    .ifPresent(affaire -> dto.setAffaireName(affaire.getLibelle()));
+        }
         dto.setCommande(commande.getCommande());
         dto.setVotreReference(commande.getVotreReference());
         dto.setPiece(commande.getPiece());

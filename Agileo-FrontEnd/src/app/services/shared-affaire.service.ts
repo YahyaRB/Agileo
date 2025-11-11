@@ -38,6 +38,7 @@ export class SharedAffaireService {
 
   // Charger toutes les affaires (pour admin/manager)
   getAllAffaires(): Observable<Affaire[]> {
+
     if (this.allAffairesLoaded && this.allAffairesSubject.value.length > 0) {
       return this.allAffaires$;
     }

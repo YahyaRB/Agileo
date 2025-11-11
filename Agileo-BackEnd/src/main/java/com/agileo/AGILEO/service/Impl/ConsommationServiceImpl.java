@@ -27,6 +27,7 @@ public class ConsommationServiceImpl implements ConsommationService {
     private final ConsommationRepository consommationRepository;
     private final LigneConsommationRepository ligneConsommationRepository;
     private final AffaireRepository affaireRepository;
+    private final AffaireDisplayRepository affaireDisplayRepository; // NOUVEAU
     private final KdnsAccessorRepository kdnsAccessorRepository;
     private final UserServiceImpl userService;
     private final ArticleEnStockRepository articleEnStockRepository;
@@ -36,21 +37,23 @@ public class ConsommationServiceImpl implements ConsommationService {
             ConsommationRepository consommationRepository,
             LigneConsommationRepository ligneConsommationRepository,
             AffaireRepository affaireRepository,
+            AffaireDisplayRepository affaireDisplayRepository, // NOUVEAU
             KdnsAccessorRepository kdnsAccessorRepository,
             ArticleErpRepository articleErpRepository,
             LigneReceptionRepository ligneReceptionRepository,
             UserServiceImpl userService,
             FileService fileService,
-            ArticleEnStockRepository articleEnStockRepository, DivaltoIntegrationConsommationService divaltoIntegrationConsommationService) {
+            ArticleEnStockRepository articleEnStockRepository,
+            DivaltoIntegrationConsommationService divaltoIntegrationConsommationService) {
         this.consommationRepository = consommationRepository;
         this.ligneConsommationRepository = ligneConsommationRepository;
         this.affaireRepository = affaireRepository;
+        this.affaireDisplayRepository = affaireDisplayRepository; // NOUVEAU
         this.kdnsAccessorRepository = kdnsAccessorRepository;
         this.userService = userService;
         this.articleEnStockRepository = articleEnStockRepository;
         this.divaltoIntegrationConsommationService = divaltoIntegrationConsommationService;
     }
-
     @Override
     public ConsommationResponseDTO createConsommation(ConsommationRequestDTO consommationDto, String currentUsername) {
         String affaireCode = consommationDto.getAffaireId();
@@ -59,8 +62,10 @@ public class ConsommationServiceImpl implements ConsommationService {
             throw new BadRequestException("Code d'affaire requis");
         }
 
+        // Utiliser la vue Affaires (avec filtre SAISAUTTYP_0001 = 2) pour la création
+        // Cela garantit que seules les affaires autorisées en saisie peuvent être sélectionnées
         Affaire affaire = affaireRepository.findById(affaireCode.trim())
-                .orElseThrow(() -> new ResourceNotFoundException("Affaire introuvable: " + affaireCode));
+                .orElseThrow(() -> new ResourceNotFoundException("Affaire introuvable ou non autorisée: " + affaireCode));
 
         UserResponseDTO currentUser;
         try {
@@ -122,7 +127,9 @@ public class ConsommationServiceImpl implements ConsommationService {
     @Override
     public List<ConsommationResponseDTO> getConsommationsByAffaire(Integer affaireId) {
         String affaireCode = String.valueOf(affaireId);
-        Affaire affaire = affaireRepository.findById(affaireCode)
+
+        // Utiliser AffaireDisplay pour l'affichage
+        AffaireDisplay affaire = affaireDisplayRepository.findById(affaireCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Affaire introuvable: " + affaireCode));
 
         List<Consommation> consommations = consommationRepository.findByChantier(affaire.getAffaire());
@@ -157,8 +164,11 @@ public class ConsommationServiceImpl implements ConsommationService {
 
         if (consommationDto.getAffaireId() != null && !consommationDto.getAffaireId().trim().isEmpty()) {
             String affaireCode = consommationDto.getAffaireId().trim();
+
+            // Utiliser la vue Affaires (avec filtre) pour la modification
+            // Cela garantit que l'utilisateur ne peut modifier qu'avec des affaires autorisées
             Affaire affaire = affaireRepository.findById(affaireCode)
-                    .orElseThrow(() -> new ResourceNotFoundException("Affaire introuvable: " + affaireCode));
+                    .orElseThrow(() -> new ResourceNotFoundException("Affaire introuvable ou non autorisée: " + affaireCode));
             consommation.setChantier(affaire.getAffaire());
         }
 
@@ -173,7 +183,8 @@ public class ConsommationServiceImpl implements ConsommationService {
 
     @Override
     public List<ConsommationResponseDTO> getConsommationsByAffaireCode(String affaireCode) {
-        Affaire affaire = affaireRepository.findById(affaireCode)
+        // Utiliser AffaireDisplay pour l'affichage
+        AffaireDisplay affaire = affaireDisplayRepository.findById(affaireCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Affaire introuvable: " + affaireCode));
 
         List<Consommation> consommations = consommationRepository.findByChantier(affaire.getAffaire());
@@ -661,46 +672,92 @@ public class ConsommationServiceImpl implements ConsommationService {
     }
 
     private ConsommationResponseDTO mapToResponseDTO(Consommation consommation) {
-        return mapToResponseDTOs(Collections.singletonList(consommation)).get(0);
+        ConsommationResponseDTO dto = new ConsommationResponseDTO();
+
+        dto.setId(consommation.getIdBc());
+        dto.setDateConsommation(consommation.getDateC());
+        dto.setCommentaire(consommation.getComm());
+        dto.setRefInterne(consommation.getRefInterne());
+        dto.setStatut(getStatutLabel(consommation.getStatut()));
+        dto.setCreatedDate(consommation.getSysCreationDate());
+
+
+        // Récupérer l'affaire depuis AffaireDisplay (MODIFIÉ)
+        if (consommation.getChantier() != null) {
+            affaireDisplayRepository.findById(consommation.getChantier())
+                    .ifPresent(affaire -> {
+                        dto.setAffaireCode(affaire.getAffaire());
+                        dto.setAffaireLibelle(affaire.getLibelle());
+
+                        try {
+                            String numericPart = affaire.getAffaire().replaceAll("[^0-9]", "");
+                            if (!numericPart.isEmpty()) {
+                                dto.setAffaireId(Integer.valueOf(numericPart));
+                            }
+                        } catch (NumberFormatException e) {
+                            dto.setAffaireId(null);
+                        }
+                    });
+        }
+
+        // Récupérer l'utilisateur créateur
+        if (consommation.getSysCreatorId() != null) {
+            kdnsAccessorRepository.findById(consommation.getSysCreatorId())
+                    .ifPresent(creator -> {
+                        dto.setUserLogin(creator.getLogin());
+                        dto.setCreatedBy(creator.getLogin());
+                        dto.setCreateurNom(formatUserName(creator));
+                    });
+        }
+
+        return dto;
     }
 
 
+
     private List<ConsommationResponseDTO> mapToResponseDTOs(List<Consommation> consommations) {
-        if (consommations.isEmpty()) {
+        if (consommations == null || consommations.isEmpty()) {
             return Collections.emptyList();
         }
 
+        // Récupérer tous les codes affaires uniques
         Set<String> affaireCodes = consommations.stream()
                 .map(Consommation::getChantier)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
+        // Charger toutes les affaires en une seule requête depuis AffaireDisplay (MODIFIÉ)
+        Map<String, AffaireDisplay> affaires = affaireDisplayRepository.findAllById(affaireCodes)
+                .stream()
+                .collect(Collectors.toMap(AffaireDisplay::getAffaire, a -> a));
+
+        // Récupérer tous les IDs utilisateurs uniques
         Set<Integer> userIds = consommations.stream()
-                .flatMap(c -> Stream.of(c.getLogin(), c.getSysCreatorId(), c.getSysUserId()))
+                .map(Consommation::getSysCreatorId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<String, Affaire> affaires = affaireRepository.findAllById(affaireCodes)
-                .stream()
-                .collect(Collectors.toMap(Affaire::getAffaire, a -> a));
-
+        // Charger tous les utilisateurs en une seule requête
         Map<Integer, KdnsAccessor> users = kdnsAccessorRepository.findAllById(userIds)
                 .stream()
                 .collect(Collectors.toMap(KdnsAccessor::getAccessorId, u -> u));
 
+        // Mapper chaque consommation
         return consommations.stream()
                 .map(consommation -> {
                     ConsommationResponseDTO dto = new ConsommationResponseDTO();
+
                     dto.setId(consommation.getIdBc());
                     dto.setDateConsommation(consommation.getDateC());
                     dto.setCommentaire(consommation.getComm());
                     dto.setRefInterne(consommation.getRefInterne());
-                    dto.setUserId(consommation.getLogin());
                     dto.setStatut(getStatutLabel(consommation.getStatut()));
                     dto.setCreatedDate(consommation.getSysCreationDate());
 
+
+                    // Mapper l'affaire depuis le cache (MODIFIÉ : utilise AffaireDisplay)
                     if (consommation.getChantier() != null) {
-                        Affaire affaire = affaires.get(consommation.getChantier());
+                        AffaireDisplay affaire = affaires.get(consommation.getChantier());
                         if (affaire != null) {
                             dto.setAffaireCode(affaire.getAffaire());
                             dto.setAffaireLibelle(affaire.getLibelle());
@@ -716,6 +773,7 @@ public class ConsommationServiceImpl implements ConsommationService {
                         }
                     }
 
+                    // Mapper l'utilisateur depuis le cache
                     if (consommation.getSysCreatorId() != null) {
                         KdnsAccessor creator = users.get(consommation.getSysCreatorId());
                         if (creator != null) {
@@ -729,6 +787,7 @@ public class ConsommationServiceImpl implements ConsommationService {
                 })
                 .collect(Collectors.toList());
     }
+
 
     private LigneConsommationResponseDTO mapLigneToResponseDTO(LigneConsommation ligne) {
         LigneConsommationResponseDTO dto = new LigneConsommationResponseDTO();
@@ -744,6 +803,8 @@ public class ConsommationServiceImpl implements ConsommationService {
 
         return dto;
     }
+
+
 
     private String getStatutLabel(Integer statut) {
         if (statut == null || statut == 0) return "Brouillon";
@@ -761,9 +822,9 @@ public class ConsommationServiceImpl implements ConsommationService {
         return (firstName + " " + lastName).trim();
     }
 
+
     // Méthode d'extraction du dépôt depuis le code affaire
     private String extraireDepotDuCodeAffaire(String codeAffaire) {
-
 
         if (codeAffaire == null || codeAffaire.trim().isEmpty()) {
             throw new BadRequestException("Code affaire invalide: " + codeAffaire);
@@ -772,20 +833,15 @@ public class ConsommationServiceImpl implements ConsommationService {
         try {
             // Méthode 1: Pour les codes qui commencent par "CH"
             if (codeAffaire.startsWith("CH")) {
-                // Enlever "CH" et garder les chiffres
-                String chiffres = codeAffaire.substring(2); // Exemple: CH003721 -> 003721
-
+                String chiffres = codeAffaire.substring(2);
 
                 if (chiffres.length() >= 3) {
-                    // Prendre les 3 derniers chiffres
-                    String depot = chiffres.substring(chiffres.length() - 3); // 003721 -> 721
+                    String depot = chiffres.substring(chiffres.length() - 3);
 
-                    // Vérifier si ce dépôt existe dans la base
                     try {
                         Long count = articleEnStockRepository.countByDepo(depot);
                         if (count > 0) {
                             return depot;
-                        } else {
                         }
                     } catch (Exception e) {
                         System.out.println("Erreur vérification dépôt " + depot + ": " + e.getMessage());
@@ -795,7 +851,6 @@ public class ConsommationServiceImpl implements ConsommationService {
 
             // Méthode 2: Extraction générale - tous les chiffres
             String tousLesChiffres = codeAffaire.replaceAll("[^0-9]", "");
-            System.out.println("Tous les chiffres du code: " + tousLesChiffres);
 
             if (tousLesChiffres.length() >= 3) {
                 String depot = tousLesChiffres.substring(tousLesChiffres.length() - 3);
@@ -812,24 +867,19 @@ public class ConsommationServiceImpl implements ConsommationService {
 
             // Méthode 3: Essayer d'autres positions dans les chiffres
             if (tousLesChiffres.length() >= 6) {
-                // Essayer les 3 chiffres du milieu
                 int start = (tousLesChiffres.length() - 3) / 2;
                 String depotMilieu = tousLesChiffres.substring(start, start + 3);
-
 
                 try {
                     Long count = articleEnStockRepository.countByDepo(depotMilieu);
                     if (count > 0) {
-
                         return depotMilieu;
                     }
                 } catch (Exception e) {
                     System.out.println("Erreur vérification dépôt milieu " + depotMilieu + ": " + e.getMessage());
                 }
 
-                // Essayer les 3 premiers chiffres
                 String depotDebut = tousLesChiffres.substring(0, 3);
-
 
                 try {
                     Long count = articleEnStockRepository.countByDepo(depotDebut);
@@ -840,6 +890,7 @@ public class ConsommationServiceImpl implements ConsommationService {
                     System.out.println("Erreur vérification dépôt début " + depotDebut + ": " + e.getMessage());
                 }
             }
+
             try {
                 List<String> depotsDisponibles = articleEnStockRepository.findAllDepots();
                 System.out.println("Dépôts disponibles dans la base: " + depotsDisponibles);
@@ -861,11 +912,10 @@ public class ConsommationServiceImpl implements ConsommationService {
             throw new BadRequestException("Aucun dépôt contenant des articles trouvé pour le code affaire: " + codeAffaire);
 
         } catch (BadRequestException e) {
-            throw e; // Re-lancer les BadRequestException
+            throw e;
         } catch (Exception e) {
             System.err.println("Erreur lors de l'extraction du dépôt: " + e.getMessage());
 
-            // Dernier recours: essayer de trouver n'importe quel dépôt avec des articles
             try {
                 List<String> depotsDisponibles = articleEnStockRepository.findAllDepots();
                 if (!depotsDisponibles.isEmpty()) {
