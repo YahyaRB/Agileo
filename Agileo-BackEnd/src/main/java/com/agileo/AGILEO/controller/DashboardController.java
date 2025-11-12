@@ -45,29 +45,48 @@ public class DashboardController {
     /**
      * Récupère les statistiques pour l'utilisateur connecté
      */
-    /**
-     * Récupère les statistiques pour l'utilisateur connecté
-     */
     @GetMapping("/me")
     public ResponseEntity<DashboardDTO> getMesStatistiques(
+            Authentication authentication,
             @RequestParam(required = false) Integer accessorId,
             @RequestParam(required = false) String role) {
 
-        // Si pas d'accessorId fourni, utiliser une valeur par défaut ou récupérer du token
+        // Récupérer les rôles de l'utilisateur depuis l'authentification
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isConsulteur = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CONSULTEUR") || 
+                             a.getAuthority().equals("ROLE_CONSULTANT"));
+
+        // Admin ou Consulteur : toutes les données
+        if (isAdmin || isConsulteur || "ADMIN".equalsIgnoreCase(role) || 
+            "CONSULTEUR".equalsIgnoreCase(role) || "CONSULTANT".equalsIgnoreCase(role)) {
+            DashboardDTO stats = dashboardService.getStatistiquesAdmin();
+            return ResponseEntity.ok(stats);
+        }
+
+        // Si pas d'accessorId fourni, essayer de le récupérer depuis l'utilisateur
         if (accessorId == null) {
-            // Pour le moment, retourner les stats admin par défaut
-            // Vous pourrez récupérer l'ID depuis le JWT plus tard
+            try {
+                com.agileo.AGILEO.entity.secondary.User user = 
+                    userService.getUserByLogin(authentication.getName());
+                if (user != null && user.getIdAgelio() != null && !user.getIdAgelio().isEmpty()) {
+                    accessorId = Integer.parseInt(user.getIdAgelio());
+                }
+            } catch (Exception e) {
+                // Si erreur, retourner les stats admin par défaut
+                DashboardDTO stats = dashboardService.getStatistiquesAdmin();
+                return ResponseEntity.ok(stats);
+            }
+        }
+
+        // Si toujours pas d'accessorId, retourner les stats admin
+        if (accessorId == null) {
             DashboardDTO stats = dashboardService.getStatistiquesAdmin();
             return ResponseEntity.ok(stats);
         }
 
-        // Si admin, retourne toutes les stats
-        if ("ADMIN".equals(role)) {
-            DashboardDTO stats = dashboardService.getStatistiquesAdmin();
-            return ResponseEntity.ok(stats);
-        }
-
-        // Sinon, stats filtrées par utilisateur
+        // Sinon, stats filtrées par utilisateur (Magasinier, Chef Projet, etc.)
         DashboardDTO stats = dashboardService.getStatistiquesUtilisateur(accessorId);
         return ResponseEntity.ok(stats);
     }

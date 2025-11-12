@@ -316,15 +316,15 @@ public class ConsommationServiceImpl implements ConsommationService {
 
             try {
                 // Appel du service d'intégration Divalto
-             //   divaltoIntegrationConsommationService.integrerConsommationDansDivalto(consommationId, currentUsername);
+               divaltoIntegrationConsommationService.integrerConsommationDansDivalto(consommationId, currentUsername);
 
                 System.out.println("═══════════════════════════════════════════════════════════════");
                 System.out.println("✅ INTÉGRATION DIVALTO TERMINÉE AVEC SUCCÈS !");
                 System.out.println("═══════════════════════════════════════════════════════════════");
 
                 // ✅ CORRECTION : Mettre à jour le statut à 2 (Reçu) APRÈS succès
-                //consommation.setStatut(2);
-                consommation.setStatut(1);
+                consommation.setStatut(2);
+                //consommation.setStatut(1);
                 consommation.setSysModificationDate(LocalDateTime.now());
                 consommationRepository.save(consommation);
                 System.out.println("✅ Statut final mis à jour : Reçu (2)");

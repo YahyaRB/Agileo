@@ -14,7 +14,9 @@ import { Role } from 'src/interfaces/irole';
 import {SortService} from "../../../services/sort.service";
 import {catchError} from "rxjs/operators";
 import { UserActivityStats } from 'src/interfaces/iuser-activity-stats';
-import { ChartConfiguration } from 'chart.js';
+import { Chart, ChartConfiguration, registerables } from 'chart.js';
+
+Chart.register(...registerables);
 
 declare var $: any; // Pour utiliser jQuery/Bootstrap
 
@@ -83,6 +85,7 @@ export class ListUtilisateursComponent implements OnInit, OnChanges, OnDestroy{
   statsChartData: ChartConfiguration<'line'>['data'] | null = null;
   statsChartOptions: ChartConfiguration<'line'>['options'] | null = null;
   statsModalUser: Iuser | null = null;
+  private userStatsChart: Chart | null = null;
 
   constructor(
     private cdr: ChangeDetectorRef,
@@ -634,6 +637,7 @@ export class ListUtilisateursComponent implements OnInit, OnChanges, OnDestroy{
         this.prepareStatsChart(stats);
         this.statsLoading = false;
         this.cdr.detectChanges();
+        setTimeout(() => this.createStatsChart(), 100);
       },
       error: (error) => {
         console.error('Erreur chargement statistiques utilisateur:', error);
@@ -648,12 +652,36 @@ export class ListUtilisateursComponent implements OnInit, OnChanges, OnDestroy{
 
   closeStatsModal() {
     $('#userStatsModal').modal('hide');
+    if (this.userStatsChart) {
+      this.userStatsChart.destroy();
+      this.userStatsChart = null;
+    }
     this.statsModalUser = null;
     this.statsData = null;
     this.statsChartData = null;
     this.statsChartOptions = null;
     this.statsError = null;
     this.statsLoading = false;
+  }
+
+  private createStatsChart() {
+    if (!this.statsChartData || !this.statsChartOptions) return;
+
+    const canvas = document.getElementById('userStatsChart') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (this.userStatsChart) {
+      this.userStatsChart.destroy();
+    }
+
+    this.userStatsChart = new Chart(ctx, {
+      type: 'line',
+      data: this.statsChartData,
+      options: this.statsChartOptions
+    });
   }
 
   private prepareStatsChart(stats: UserActivityStats) {
@@ -742,6 +770,9 @@ export class ListUtilisateursComponent implements OnInit, OnChanges, OnDestroy{
 
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
+    if (this.userStatsChart) {
+      this.userStatsChart.destroy();
+    }
   }
   hasNoChartData(): boolean {
     if (!this.statsChartData?.datasets) {

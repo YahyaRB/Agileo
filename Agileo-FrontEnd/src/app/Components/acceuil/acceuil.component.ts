@@ -84,7 +84,9 @@ export class AcceuilComponent implements OnInit {
   stats: DashboardStats | null = null;
   loading = true;
   isAdministrateur = false;
+  isConsulteur = false;
   userRole: string = '';
+  userRoles: string[] = [];
   accessorId: number = 0;
   // Charts
   evolutionChart: Chart | null = null;
@@ -94,16 +96,79 @@ export class AcceuilComponent implements OnInit {
   constructor(private dashboardService: DashboardService) {}
 
   ngOnInit(): void {
-    this.userRole = localStorage.getItem('userRole') || '';
-    this.accessorId = parseInt(localStorage.getItem('accessorId') || '0');
+    this.loadUserInfo();
     this.loadDashboard();
+  }
+
+  loadUserInfo(): void {
+    // Récupérer les rôles depuis localStorage ou depuis le service utilisateur
+    const storedRoles = localStorage.getItem('userRoles');
+    if (storedRoles) {
+      this.userRoles = JSON.parse(storedRoles);
+    } else {
+      this.userRoles = [localStorage.getItem('userRole') || ''].filter(r => r);
+    }
+    
+    this.userRole = this.userRoles[0] || localStorage.getItem('userRole') || '';
+    this.accessorId = parseInt(localStorage.getItem('accessorId') || '0');
+    
+    // Déterminer si l'utilisateur est admin ou consulteur (voit toutes les données)
+    this.isAdministrateur = this.hasRole('ADMIN');
+    this.isConsulteur = this.hasRole('CONSULTEUR') || this.hasRole('CONSULTANT');
+  }
+
+  hasRole(roleName: string): boolean {
+    return this.userRoles.some(role => 
+      role.toUpperCase() === roleName.toUpperCase() || 
+      role.toUpperCase().includes(roleName.toUpperCase())
+    );
   }
 
   loadDashboard(): void {
     this.loading = true;
-    const userRole = localStorage.getItem('userRole');
-    this.isAdministrateur = userRole === 'ADMIN';
 
+    // Admin ou Consulteur : toutes les données
+    if (this.isAdministrateur || this.isConsulteur) {
+      this.dashboardService.getAdminStats().subscribe({
+        next: (data) => {
+          this.stats = data;
+          this.loading = false;
+          setTimeout(() => this.initCharts(), 100);
+        },
+        error: (error) => {
+          console.error('Erreur lors du chargement du dashboard admin:', error);
+          this.loading = false;
+        }
+      });
+    } 
+    // Magasinier ou Chef Projet : données filtrées par affaires
+    else if (this.hasRole('MAGASINIER') || this.hasRole('CHEF_PROJET') || this.hasRole('CHEF DE PROJET')) {
+      if (this.accessorId > 0) {
+        this.dashboardService.getUserStats(this.accessorId).subscribe({
+          next: (data) => {
+            this.stats = data;
+            this.loading = false;
+            setTimeout(() => this.initCharts(), 100);
+          },
+          error: (error) => {
+            console.error('Erreur lors du chargement du dashboard utilisateur:', error);
+            // Fallback : essayer de récupérer l'accessorId depuis le backend
+            this.loadDashboardWithFallback();
+          }
+        });
+      } else {
+        // Si pas d'accessorId, essayer de le récupérer
+        this.loadDashboardWithFallback();
+      }
+    }
+    // Autres rôles : essayer de charger avec accessorId si disponible
+    else {
+      this.loadDashboardWithFallback();
+    }
+  }
+
+  private loadDashboardWithFallback(): void {
+    // Essayer de charger les stats pour l'utilisateur connecté
     this.dashboardService.getDashboardStats().subscribe({
       next: (data) => {
         this.stats = data;

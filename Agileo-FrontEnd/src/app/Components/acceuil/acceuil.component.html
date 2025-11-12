@@ -6,8 +6,9 @@
       Tableau de bord
     </h1>
     <div class="dashboard-subtitle">
-      <span *ngIf="isAdministrateur " class="badge badge-admin">Administrateur</span>
-      <span *ngIf="!isAdministrateur " class="badge badge-user">Utilisateur</span>
+      <span *ngIf="isAdministrateur" class="badge badge-admin">Administrateur</span>
+      <span *ngIf="isConsulteur && !isAdministrateur" class="badge badge-info">Consulteur</span>
+      <span *ngIf="!isAdministrateur && !isConsulteur" class="badge badge-user">Utilisateur</span>
       <span class="date">Aujourd'hui: {{ currentDate | date: 'dd/MM/yyyy' }}</span>
     </div>
   </div>
@@ -191,8 +192,8 @@
       </div>
     </div>
 
-    <!-- Affaires (pour utilisateurs non-admin) -->
-    <div *ngIf="!isAdministrateur  && stats.affaires && stats.affaires.length > 0" class="table-section">
+    <!-- Affaires (pour utilisateurs non-admin et non-consulteur) -->
+    <div *ngIf="!isAdministrateur && !isConsulteur && stats.affaires && stats.affaires.length > 0" class="table-section">
       <div class="table-header">
         <h3><i class="fas fa-project-diagram"></i> Mes affaires</h3>
         <p>Suivi de vos projets</p>

@@ -41,10 +41,12 @@ public interface MouvRepository extends JpaRepository<MOUV, Integer> {
         return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
     }
 
-    @Query(value = "SELECT TOP 1 COALESCE(CAST(NULLIF(RTRIM(LTRIM(CRTOTMT)), '') AS DECIMAL(18,2)), 0) " +
+   /* @Query(value = "SELECT TOP 1 COALESCE(CAST(NULLIF(RTRIM(LTRIM(CRTOTMT)), '') AS DECIMAL(18,2)), 0) " +
             "FROM MOUV WHERE DEPO = :depo AND DOS = '1' AND REF = :ref " +
             "AND CRTOTMT IS NOT NULL AND RTRIM(LTRIM(CRTOTMT)) != '' " +
-            "ORDER BY MOUV_ID DESC", nativeQuery = true)
+            "ORDER BY MOUV_ID DESC", nativeQuery = true)*/
+    @Query(value = "SELECT TOP 1 PUB FROM MOUV WHERE DEPO = :depo AND DOS = '1' AND REF = :ref " +
+            "AND TICOD='F' AND PUB>0 " , nativeQuery = true)
     BigDecimal getCrtotmtByDepoAndRef(@Param("depo") String depo, @Param("ref") String ref);
 
 }

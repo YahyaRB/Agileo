@@ -345,13 +345,7 @@
         </div>
 
         <div *ngIf="!statsLoading && !statsError" class="chart-container" style="height: 360px;">
-          <canvas
-            *ngIf="statsChartData && statsChartOptions"
-            baseChart
-            [data]="statsChartData"
-            [options]="statsChartOptions"
-            [type]="'line'">
-          </canvas>
+          <canvas id="userStatsChart"></canvas>
           <div
             *ngIf="hasNoChartData()"
             class="text-center text-muted mt-4">

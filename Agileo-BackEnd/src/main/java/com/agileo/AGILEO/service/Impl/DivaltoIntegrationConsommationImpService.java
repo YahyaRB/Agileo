@@ -204,8 +204,8 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
         ent.setOp("IS"); // Opération = IS (sortie de stock)
 
         // Utilisateur
-        ent.setUsercr(username != null && username.length() <= 20 ? username : "ROOT");
-        ent.setUsermo(username != null && username.length() <= 20 ? username : "ROOT");
+        ent.setUsercr(username != null && username.length() <= 20 ? username.toUpperCase() : "ROOT");
+        ent.setUsermo(username != null && username.length() <= 20 ? username.toUpperCase() : "ROOT");
 
         // Dates de création/modification
         LocalDateTime now = LocalDateTime.now();
@@ -518,7 +518,7 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
 
         // ========== NUMÉRO D'ENREGISTREMENT ==========
         mouv.setEnrno(socnoRepository.findByNumEnrgForUpdate().add(BigDecimal.ONE));
-
+        socnoRepository.incrementNumEnrg();
         // ========== QUANTITÉS ==========  /*/*
         mouv.setQte1(BigDecimal.ZERO);
         mouv.setQte2(BigDecimal.ZERO);
@@ -532,8 +532,8 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
 
         // ========== OPÉRATION ET UTILISATEUR ==========
         mouv.setOp("IS");
-        mouv.setUsercr(username != null && username.length() <= 20 ? username : "ROOT");
-        mouv.setUsermo(username != null && username.length() <= 20 ? username : "ROOT");
+        mouv.setUsercr(username != null && username.length() <= 20 ? username.toUpperCase() : "ROOT");
+        mouv.setUsermo("");
 
         // ========== DATES ==========
         LocalDateTime now = LocalDateTime.now();
@@ -614,7 +614,7 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
         mouv.setCddt(null);
         mouv.setCdlg(BigDecimal.ZERO);
         mouv.setCdslg(BigDecimal.ZERO);
-        mouv.setCdce4(BigDecimal.ZERO);
+        mouv.setCdce4("");
         mouv.setCdenrno(BigDecimal.ZERO);
         mouv.setCdqte(BigDecimal.ZERO);
         mouv.setCdnopere(BigDecimal.ZERO);
@@ -903,9 +903,10 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
 
         // ========== CHAMPS MONTANTS DIVERS ==========
         BigDecimal crtotmt = mouvRepository.getCrtotmtByDepoAndRef(mouv.getDepo(), mouv.getRef());
-        if (crtotmt == null) crtotmt = BigDecimal.ZERO;
-        mouv.setCrtotmt(crtotmt);
-        mouv.setCmptotmt(crtotmt);
+        System.out.println("crtotmt : "+crtotmt);
+        System.out.println("ligne.getQte() : "+ligne.getQte());
+        mouv.setCrtotmt(crtotmt.multiply(BigDecimal.valueOf(ligne.getQte())));
+        mouv.setCmptotmt(crtotmt.multiply(BigDecimal.valueOf(ligne.getQte())));
         mouv.setAppremmt(BigDecimal.ZERO);
         mouv.setAppremmtun(BigDecimal.ZERO);
         mouv.setPatotmt(BigDecimal.ZERO);
@@ -1152,7 +1153,7 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
         mvtlSortie.setCe7(mvtlReference.getCe7() != null ? mvtlReference.getCe7() : "");
         mvtlSortie.setCe8(mvtlReference.getCe8() != null ? mvtlReference.getCe8() : "");
         mvtlSortie.setCe9(mvtlReference.getCe9() != null ? mvtlReference.getCe9() : "");
-        mvtlSortie.setCea("1");
+        mvtlSortie.setCea("");
 
         mvtlSortie.setDos(mvtlReference.getDos());
         mvtlSortie.setRef(mvtlReference.getRef());
@@ -1165,8 +1166,9 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
         mvtlSortie.setSerie(mvtlReference.getSerie() != null ? mvtlReference.getSerie() : "");
         mvtlSortie.setNst(mvtlReference.getNst() != null ? mvtlReference.getNst() : "N");
 
-        String stdtSql = entConsommation.getPidt().format(DateTimeFormatter.BASIC_ISO_DATE);
-        mvtlSortie.setStdtsql(stdtSql);
+
+
+        mvtlSortie.setStdtsql(mvtlReference.getStdtsql());
 
         mvtlSortie.setPrefpino(mvtlReference.getPrefpino() != null ? mvtlReference.getPrefpino() : "");
         mvtlSortie.setBlaslieu(mvtlReference.getBlaslieu() != null ? mvtlReference.getBlaslieu() : "");
@@ -1176,8 +1178,8 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
         mvtlSortie.setPicod(BigDecimal.valueOf(3));
         mvtlSortie.setTiers("I0000000");
         mvtlSortie.setOp("IS");
-        mvtlSortie.setUsercr(username != null && username.length() <= 20 ? username : "ROOT");
-        mvtlSortie.setUsermo(username != null && username.length() <= 20 ? username : "ROOT");
+        mvtlSortie.setUsercr(username != null && username.length() <= 20 ? username.toUpperCase() : "ROOT");
+        mvtlSortie.setUsermo(username != null && username.length() <= 20 ? username.toUpperCase() : "ROOT");
         mvtlSortie.setEnrno(mouv.getEnrno());
         mvtlSortie.setLilg(BigDecimal.valueOf(2));
         mvtlSortie.setDeldt(null);
@@ -1187,14 +1189,14 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
         BigDecimal vtlna = mvtlReference.getVtlno();
         mvtlSortie.setVtlno(vtlno);
         mvtlSortie.setVtlna(vtlna);
-
+        socnoRepository.incrementVtlnoEnrg();
         mvtlSortie.setSens(BigDecimal.valueOf(2)); // SORTIE
         mvtlSortie.setPino(entConsommation.getPino());
         mvtlSortie.setCdvtlno(BigDecimal.ZERO);
         mvtlSortie.setTicketres(mvtlReference.getTicketres() != null ? mvtlReference.getTicketres() : BigDecimal.ZERO);
         mvtlSortie.setBldt(entConsommation.getPidt());
-        mvtlSortie.setDeldemdt(mvtlReference.getDeldemdt());
-        mvtlSortie.setDelaccdt(mvtlReference.getDelaccdt());
+        mvtlSortie.setDeldemdt(null);
+        mvtlSortie.setDelaccdt(null);
         mvtlSortie.setDelrepdt(mvtlReference.getDelrepdt());
         mvtlSortie.setBlasvtlno(mvtlReference.getBlasvtlno() != null ? mvtlReference.getBlasvtlno() : BigDecimal.ZERO);
         mvtlSortie.setPerempdt(mvtlReference.getPerempdt());

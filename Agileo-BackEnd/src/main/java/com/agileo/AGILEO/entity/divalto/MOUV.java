@@ -128,8 +128,8 @@
         @Column(name = "CDSLG")
         private BigDecimal cdslg;
 
-        @Column(name = "CDCE4")
-        private BigDecimal cdce4;
+        @Column(name = "CDCE4", length = 1)
+        private String  cdce4;
 
         @Column(name = "CDENRNO")
         private BigDecimal cdenrno;

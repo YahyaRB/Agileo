@@ -206,7 +206,7 @@ public class DivaltoIntegrationReceptionImpService implements DivaltoIntegration
                                 mouvForUpdate.setCe9("1");
                                 mouvForUpdate.setPicod(BigDecimal.valueOf(3));
                                 mouvForUpdate.setCdlg(BigDecimal.valueOf(2));
-                                mouvForUpdate.setCdce4(BigDecimal.valueOf(8));
+                                mouvForUpdate.setCdce4("8");
                                 mouvForUpdate.setBlno(entBL.getPino());
                                 mouvForUpdate.setBldt(entBL.getPidt());
                                 mouvForUpdate.setBllg(BigDecimal.valueOf(nbLigneBL));
@@ -245,7 +245,7 @@ public class DivaltoIntegrationReceptionImpService implements DivaltoIntegration
                                     mouvForInsert.setCe7(" ");
                                     mouvForInsert.setCe9(" ");
                                     mouvForInsert.setArtind("        ");
-                                    mouvForInsert.setCdce4(BigDecimal.ONE);
+                                    mouvForInsert.setCdce4("1");
                                     mouvForInsert.setBllg(BigDecimal.ONE);
                                     mouvForInsert.setBlno(BigDecimal.ZERO);
                                     mouvForInsert.setBllg(BigDecimal.ZERO);
