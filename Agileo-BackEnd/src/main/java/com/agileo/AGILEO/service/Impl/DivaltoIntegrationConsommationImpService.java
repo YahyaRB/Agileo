@@ -26,6 +26,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -77,7 +78,6 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
     @Override
     public void integrerConsommationDansDivalto(Integer consommationId, String currentUsername) {
 
-
         try {
             // 1. Récupérer et valider la consommation
             Consommation consommation = consommationRepository.findById(consommationId)
@@ -91,16 +91,6 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
             if (lignes == null || lignes.isEmpty()) {
                 throw new BadRequestException("La consommation n'a aucune ligne");
             }
-
-            // Valider chaque ligne
-/*            for (LigneConsommation ligne : lignes) {
-                if (ligne.getRef() == null || ligne.getRef().trim().isEmpty()) {
-                    throw new BadRequestException("Référence article manquante pour une ligne de la consommation " + consommationId);
-                }
-                if (ligne.getQte() == null || ligne.getQte() <= 0) {
-                    throw new BadRequestException("Quantité invalide pour l'article: " + ligne.getRef());
-                }
-            }*/
 
             // 3. Récupérer l'affaire pour avoir le projet
             String projet = consommation.getChantier();
@@ -143,12 +133,18 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
                             throw new RuntimeException("Échec sauvegarde consommation: " + e.getMessage(), e);
                         }
 
+                        // 🆕 CORRECTION: Gestion de List<Mvtl>
                         for (LigneConsommation ligne : lignes) {
                             try {
                                 MOUV mouv = creerLigneMouv(ligne, entConsommation, currentUsername);
                                 mouv = mouvRepository.save(mouv);
-                                Mvtl mvtl = creerLigneMvtl(ligne, mouv, entConsommation, currentUsername);
-                                mvtlRepository.save(mvtl);
+
+                                // ✅ NOUVELLE APPROCHE : Créer ET sauvegarder directement
+                                List<Mvtl> mvtls = creerLigneMvtl(ligne, mouv, entConsommation, currentUsername);
+
+                                // 🆕 PLUS BESOIN DE SAUVEGARDER ICI - C'est fait dans creerLigneMvtl
+                                log.info("🎯 Article {} traité - {} lignes consommation créées",
+                                        ligne.getRef(), mvtls.size());
 
                             } catch (Exception e) {
                                 log.error("❌ Erreur création ligne pour REF {}: {}", ligne.getRef(), e.getMessage(), e);
@@ -220,10 +216,6 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
         ent.setDepo(depot);
 
         // Montants (seront calculés à partir des lignes)
-    /*    ent.setHtmt(BigDecimal.ZERO);
-        ent.setTtcmt(BigDecimal.ZERO);
-        ent.setHtpdtmt(BigDecimal.ZERO);*/
-
         ent.setHtmt(BigDecimal.valueOf(58963));/*/*/
         ent.setTtcmt(BigDecimal.valueOf(77896));/*/*/
         ent.setHtpdtmt(BigDecimal.valueOf(8561));/*/*/
@@ -233,7 +225,6 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
                 .mapToDouble(LigneConsommation::getQte)
                 .sum();
 
-       /* ent.setRefnb(BigDecimal.valueOf(sommeQte));*/
         ent.setRefnb(BigDecimal.valueOf(896));/*/*/
         ent.setOrigine(BigDecimal.ZERO);
 
@@ -526,9 +517,6 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
         mouv.setFaqte(BigDecimal.valueOf(0.000));
         mouv.setRefqte(BigDecimal.valueOf(ligne.getQte()));
         mouv.setEmbqte(BigDecimal.valueOf(0.000));
-
-
-
 
         // ========== OPÉRATION ET UTILISATEUR ==========
         mouv.setOp("IS");
@@ -914,158 +902,14 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
         return mouv;
     }
 
-    /**
-     * Créer une ligne MVTL (mouvement de stock) pour la consommation
-     */
-/*    private Mvtl creerLigneMvtl(LigneConsommation ligne, MOUV mouv, ENT entConsommation, String username) {
-        Mvtl mvtl = new Mvtl();
-
-        // ========== CHAMPS DE BASE CE ==========
-        mvtl.setCe1("V");
-        mvtl.setCe2("");
-        mvtl.setCe3("");
-        mvtl.setCe4("1");
-        mvtl.setCe5("");
-        mvtl.setCe6("");
-        mvtl.setCe7("");
-        mvtl.setCe8("");
-        mvtl.setCe9("");
-        mvtl.setCea("");
-
-        // ========== DOSSIER ET RÉFÉRENCE ==========
-        mvtl.setDos("1");
-        mvtl.setRef(ligne.getRef());
-        mvtl.setSref1(ligne.getSref1() != null ? ligne.getSref1() : "");
-        mvtl.setSref2(ligne.getSref2() != null ? ligne.getSref2() : "");
-
-        // ========== TYPE ET TIERS ==========
-        mvtl.setTicod("I");
-        mvtl.setPicod(BigDecimal.valueOf(3));
-        mvtl.setTiers("I0000000");
-
-        // ========== OPÉRATION ET UTILISATEUR ==========
-        mvtl.setOp("IS");
-        mvtl.setUsercr(username != null && username.length() <= 20 ? username : "ROOT");
-        mvtl.setUsermo(username != null && username.length() <= 20 ? username : "ROOT");
-
-        // ========== LIEN AVEC MOUV ==========
-        mvtl.setEnrno(mouv.getEnrno());
-        mvtl.setLilg(BigDecimal.valueOf(2)); // Numéro de ligne
-
-        // ========== DÉPÔT ET ÉTABLISSEMENT ==========
-        mvtl.setEtb(entConsommation.getEtb() != null ? entConsommation.getEtb() : "");
-        mvtl.setDepo(entConsommation.getDepo());
-        mvtl.setLieu(""); // Emplacement
-
-        // ========== TICKET RES ==========
-        mvtl.setTicketres(BigDecimal.ZERO);
-        mvtl.setTicketmress(BigDecimal.ZERO);
-
-        // ========== DATES ==========
-        mvtl.setBldt(entConsommation.getPidt());
-        mvtl.setDeldt(null);
-        mvtl.setDeldemdt(null);
-        mvtl.setDelaccdt(null);
-        mvtl.setDelrepdt(null);
-        mvtl.setPerempdt(null); // Date de péremption
-
-        // ========== NUMÉROS VTLNO ==========
-        BigDecimal vtlno = getNextVtlNo();
-        mvtl.setVtlno(vtlno);
-        mvtl.setVtlna(vtlno);
-
-        // ========== COLIS ET SÉRIE ==========
-        mvtl.setColino("");
-        mvtl.setSerie("");
-        mvtl.setSeriefou(""); // Série fournisseur
-        mvtl.setNst("N");
-        mvtl.setStdtsql(LocalDate.now().toString().replace("-", ""));
-
-        // ========== SENS ==========
-        mvtl.setSens(BigDecimal.valueOf(2)); // Sens = 2 (sortie)
-
-        // ========== PINO ==========
-        mvtl.setPrefpino("");
-        mvtl.setPino(entConsommation.getPino());
-
-        // ========== EMPLACEMENTS ==========
-        mvtl.setBlaslieu(""); // Lieu BL assuré
-
-        // ========== NUMÉROS DE DOCUMENTS ==========
-        mvtl.setCdvtlno(BigDecimal.ZERO);    // Numéro VTLNO commande
-        mvtl.setBlasvtlno(BigDecimal.ZERO);  // Numéro VTLNO BL assuré
-
-        // ========== TIERS STOCK ==========
-        mvtl.setTiersstock("");
-
-        // ========== NUMÉRO RCO ==========
-        mvtl.setRcono(BigDecimal.ZERO);
-
-        // ========== DATES UTILISATEUR ==========
-        LocalDate now = LocalDate.now();
-        mvtl.setUsercrdh(now);
-        mvtl.setUsermodh(null);
-
-        // ========== QUANTITÉS ==========
-*//*
-        mvtl.setRefqte(BigDecimal.valueOf(ligne.getQte()));*//*
-        mvtl.setQte(BigDecimal.valueOf(ligne.getQte()));     // Quantité
-        mvtl.setRefqte(BigDecimal.valueOf(ligne.getQte()));   //*************** Quantité référence
-        mvtl.setStqte(BigDecimal.ZERO);                       // Quantité stock
-        mvtl.setResqte(BigDecimal.ZERO);                      // Quantité réservée
-        mvtl.setStres(BigDecimal.valueOf(1));                 // Stock réservé
-
-        // ========== STATUT ==========
-        mvtl.setStatus(BigDecimal.ZERO);
-
-        // ========== CODES DIVERS ==========
-        mvtl.setOfrescod(BigDecimal.ONE);  // Code OF réservation
-        mvtl.setPrevflg(BigDecimal.ONE);   // Flag prévisionnel
-
-        // ========== BON DE PRÉPARATION ==========
-        mvtl.setBpdetno(BigDecimal.ZERO);   // Numéro détail BP
-
-        // ========== MANUTENTION ==========
-        mvtl.setManutcod("");
-
-        // ========== CONTRAT ==========
-        mvtl.setContratno(BigDecimal.ZERO); // Numéro contrat
-
-        // ========== MATÉRIEL ==========
-        mvtl.setMatlilg(BigDecimal.ZERO);   // Ligne matériel
-
-        // ========== RETOUR MARCHANDISE ==========
-        mvtl.setRmno(BigDecimal.ZERO);      // Numéro RM
-
-        // ========== ACTIF ==========
-        mvtl.setActno(BigDecimal.ZERO);     // Numéro actif
-
-        // ========== INDICE ARTICLE ==========
-        mvtl.setArtind("");
-
-        // ========== COÛTS ==========
-        BigDecimal cr = mvtlRepository.getCrByDepoAndRef(mvtl.getDepo(), mvtl.getRef());
-        if (cr == null) cr = BigDecimal.ZERO;
-        mvtl.setCr(cr);
-        mvtl.setCncr(BigDecimal.ZERO);
-        mvtl.setCmp(cr);
-        mvtl.setCrgam(BigDecimal.ZERO);
-
-        log.info("✅ Ligne MVTL créée - REF: {}, QTE: {}, VTLNO: {}", mvtl.getRef(), mvtl.getQte(), vtlno);
-
-        return mvtl;
-    }*/
-    // CORRECTION DU BUG - Méthode creerLigneMvtl modifiée
-// Remplacer la méthode à partir de la ligne 1054
-
-    private Mvtl creerLigneMvtl(LigneConsommation ligne, MOUV mouv, ENT entConsommation, String username) {
+    private List<Mvtl> creerLigneMvtl(LigneConsommation ligne, MOUV mouv, ENT entConsommation, String username) {
 
         log.info("═══════════════════════════════════════════════════════════════");
-        log.info("🔵 DÉBUT creerLigneMvtl");
-        log.info("📌 Article: {}, Quantité: {}, Dépôt: {}",
+        log.info("🔵 DÉBUT creerLigneMvtl - CORRECTION FIFO");
+        log.info("📌 Article: {}, Quantité totale: {}, Dépôt: {}",
                 ligne.getRef(), ligne.getQte(), entConsommation.getDepo());
 
-        // 1. Récupérer les entrées en stock
+        // 1. Récupérer les entrées en stock AVEC TRI FIFO
         List<Mvtl> listeMVTLBrute = mvtlRepository.listeArticlesaConsommer(
                 entConsommation.getDepo(),
                 ligne.getRef()
@@ -1076,78 +920,136 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
             throw new RuntimeException("Aucune entrée en stock pour l'article " + ligne.getRef());
         }
 
-        // 2. Filtrer pour garder uniquement les entrées avec stock
+        // 2. Filtrer ET TRIER pour FIFO strict
         List<Mvtl> listeMVTL = listeMVTLBrute.stream()
                 .filter(mvtl -> mvtl.getSens() != null && mvtl.getSens().compareTo(BigDecimal.ONE) == 0)
                 .filter(mvtl -> mvtl.getStqte() != null && mvtl.getStqte().compareTo(BigDecimal.ZERO) > 0)
+                .sorted((m1, m2) -> m1.getVtlno().compareTo(m2.getVtlno())) // 🆕 TRI FIFO EXPLICITE
                 .collect(Collectors.toList());
 
         log.info("📦 Entrées en stock disponibles: {}", listeMVTL.size());
+
+        // 🆕 DEBUG : Afficher les réceptions disponibles
+        for (Mvtl mvtl : listeMVTL) {
+            log.info("  📋 Réception VTLNO: {}, STQTE: {}", mvtl.getVtlno(), mvtl.getStqte());
+        }
 
         if (listeMVTL.isEmpty()) {
             throw new RuntimeException("Stock insuffisant pour l'article " + ligne.getRef());
         }
 
-        // 3. Mise à jour des stocks (FIFO)
+        // 3. Liste pour stocker TOUTES les lignes de consommation créées
+        List<Mvtl> lignesConsommation = new ArrayList<>();
+
+        // 4. Traitement FIFO - UNE LIGNE PAR RÉCEPTION
         BigDecimal qteRestante = BigDecimal.valueOf(ligne.getQte());
-        Mvtl mvtlReference = listeMVTL.get(0);
 
-        log.info("🔄 Début mise à jour des stocks (FIFO) - Quantité à consommer: {}", qteRestante);
+        log.info("🔄 DÉBUT traitement FIFO - Quantité à répartir: {}", qteRestante);
 
-        // 3. Mise à jour des stocks (FIFO)
-
-
-
-        log.info("🔄 Début mise à jour des stocks (FIFO) - Quantité à consommer: {}", qteRestante);
+        int numeroLigne = 0;
 
         for (Mvtl mvtlStock : listeMVTL) {
             if (qteRestante.compareTo(BigDecimal.ZERO) <= 0) {
+                log.info("✅ Quantité totale consommée - Arrêt de la boucle");
                 break;
             }
 
+            numeroLigne++;
             BigDecimal stqteActuel = mvtlStock.getStqte();
+            BigDecimal qteConsommeeReception;
             BigDecimal nouveauStock;
 
+            log.info("🔄 Ligne {} - Réception VTLNO: {}, Stock actuel: {}, Reste à consommer: {}",
+                    numeroLigne, mvtlStock.getVtlno(), stqteActuel, qteRestante);
+
+            // Calculer la quantité à consommer sur cette réception spécifique
             if (qteRestante.compareTo(stqteActuel) >= 0) {
+                // 🔥 CONSOMMATION TOTALE de cette réception
+                qteConsommeeReception = stqteActuel;
                 qteRestante = qteRestante.subtract(stqteActuel);
                 nouveauStock = BigDecimal.ZERO;
+                log.info("  ➤ Consommation TOTALE - Qté consommée: {}, Reste: {}",
+                        qteConsommeeReception, qteRestante);
             } else {
+                // 🔥 CONSOMMATION PARTIELLE de cette réception
+                qteConsommeeReception = qteRestante;
                 nouveauStock = stqteActuel.subtract(qteRestante);
                 qteRestante = BigDecimal.ZERO;
+                log.info("  ➤ Consommation PARTIELLE - Qté consommée: {}, Nouveau stock: {}",
+                        qteConsommeeReception, nouveauStock);
             }
 
-            // ✅ Mise à jour directe en base sans toucher aux autres champs
+            // 🆕 IMPORTANTE : Mise à jour du stock EN PREMIER
+            log.info("  🔄 Mise à jour stock réception VTLNO: {} → {}", mvtlStock.getVtlno(), nouveauStock);
             mvtlRepository.updateStockOnly(mvtlStock.getVtlno(), nouveauStock);
 
-            log.info("      ✅ Stock mis à jour - Nouveau stock: {}", nouveauStock);
+            // 🆕 CRÉER la ligne de consommation pour CETTE réception spécifique
+            log.info("  🔨 Création ligne consommation {} pour réception VTLNO: {}, QTE: {}",
+                    numeroLigne, mvtlStock.getVtlno(), qteConsommeeReception);
+
+            Mvtl mvtlSortie = creerLigneConsommationPourReception(
+                    mvtlStock, qteConsommeeReception, mouv, entConsommation, username, numeroLigne);
+
+            // 🆕 AJOUTER à la liste (IMPORTANT !)
+            lignesConsommation.add(mvtlSortie);
+
+            log.info("  ✅ Ligne {} créée - VTLNO: {}, VTLNA: {}, QTE: {}",
+                    numeroLigne, mvtlSortie.getVtlno(), mvtlSortie.getVtlna(), qteConsommeeReception);
+
+            // 🆕 SAUVEGARDER IMMÉDIATEMENT chaque ligne pour éviter les conflits
+            try {
+                mvtlRepository.saveAndFlush(mvtlSortie);
+                log.info("  💾 Ligne {} sauvegardée avec succès", numeroLigne);
+            } catch (Exception e) {
+                log.error("❌ Erreur sauvegarde ligne {} : {}", numeroLigne, e.getMessage());
+                throw new RuntimeException("Erreur sauvegarde ligne consommation: " + e.getMessage());
+            }
         }
 
-// Vérifier la quantité consommée
+        // Vérifier que toute la quantité a été traitée
         if (qteRestante.compareTo(BigDecimal.ZERO) > 0) {
             throw new RuntimeException("Stock insuffisant pour l'article " + ligne.getRef()
                     + ". Quantité manquante: " + qteRestante);
         }
-        // Vérifier la quantité consommée
-        if (qteRestante.compareTo(BigDecimal.ZERO) > 0) {
-            throw new RuntimeException("Stock insuffisant pour l'article " + ligne.getRef()
-                    + ". Quantité manquante: " + qteRestante);
+
+        // 5. Mise à jour du stock total article
+        try {
+            ART article = artRepository.findByRef(ligne.getRef());
+            if (article != null) {
+                BigDecimal nouvelleQuantite = article.getSttotqte().subtract(BigDecimal.valueOf(ligne.getQte()));
+                article.setSttotqte(nouvelleQuantite);
+                artRepository.saveAndFlush(article);
+                log.info("✅ Stock total article mis à jour: {}", nouvelleQuantite);
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ Erreur mise à jour stock total article: {}", e.getMessage());
         }
 
-        log.info("✅ Mise à jour des stocks terminée");
+        log.info("═══════════════════════════════════════════════════════════════");
+        log.info("🟢 FIFO TERMINÉ - {} lignes consommation créées pour PINO: {}",
+                lignesConsommation.size(), entConsommation.getPino());
+        log.info("═══════════════════════════════════════════════════════════════");
 
-        // 4. Créer le MVTL de sortie
-        log.info("🔨 Création du MVTL de sortie");
+        return lignesConsommation;
+    }
+
+    /**
+     * Crée une ligne de consommation pour une réception spécifique
+     */
+    private Mvtl creerLigneConsommationPourReception(Mvtl mvtlReference, BigDecimal qteConsommee,
+                                                     MOUV mouv, ENT entConsommation, String username, int numeroLigne) {
+
+        log.info("🔨 Création ligne consommation #{} pour réception VTLNO: {}, QTE: {}",
+                numeroLigne, mvtlReference.getVtlno(), qteConsommee);
 
         Mvtl mvtlSortie = new Mvtl();
         mvtlSortie.setMvtlId(null);
 
-        // ⭐⭐⭐ COPIER TOUS LES CHAMPS DEPUIS LA RÉFÉRENCE ⭐⭐⭐
+        // ⭐ COPIER TOUS LES CHAMPS DEPUIS LA RÉFÉRENCE ⭐
         mvtlSortie.setCe1(mvtlReference.getCe1());
         mvtlSortie.setCe2(mvtlReference.getCe2());
         mvtlSortie.setCe3(mvtlReference.getCe3());
         mvtlSortie.setCe4(mvtlReference.getCe4());
-
-        // ⭐⭐⭐ FIX CRITIQUE : Initialiser CE5 et les autres ⭐⭐⭐
         mvtlSortie.setCe5(mvtlReference.getCe5() != null ? mvtlReference.getCe5() : "");
         mvtlSortie.setCe6(" ");
         mvtlSortie.setCe7(mvtlReference.getCe7() != null ? mvtlReference.getCe7() : "");
@@ -1161,19 +1063,15 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
         mvtlSortie.setSref2(mvtlReference.getSref2() != null ? mvtlReference.getSref2() : "");
         mvtlSortie.setEtb(mvtlReference.getEtb());
         mvtlSortie.setDepo(mvtlReference.getDepo());
-        mvtlSortie.setLieu(mvtlReference.getLieu() != null ? mvtlReference.getLieu() : "");
+        mvtlSortie.setLieu("");  // 🔥 Vider pour sortie
         mvtlSortie.setColino(mvtlReference.getColino() != null ? mvtlReference.getColino() : "");
         mvtlSortie.setSerie(mvtlReference.getSerie() != null ? mvtlReference.getSerie() : "");
         mvtlSortie.setNst(mvtlReference.getNst() != null ? mvtlReference.getNst() : "N");
-
-
-
         mvtlSortie.setStdtsql(mvtlReference.getStdtsql());
+        mvtlSortie.setPrefpino("");  // 🔥 Vider pour sortie
+        mvtlSortie.setBlaslieu("");  // 🔥 Vider pour sortie
 
-        mvtlSortie.setPrefpino(mvtlReference.getPrefpino() != null ? mvtlReference.getPrefpino() : "");
-        mvtlSortie.setBlaslieu(mvtlReference.getBlaslieu() != null ? mvtlReference.getBlaslieu() : "");
-
-        // Valeurs spécifiques pour la sortie
+        // 🔥 VALEURS SPÉCIFIQUES SORTIE
         mvtlSortie.setTicod("I");
         mvtlSortie.setPicod(BigDecimal.valueOf(3));
         mvtlSortie.setTiers("I0000000");
@@ -1181,89 +1079,67 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
         mvtlSortie.setUsercr(username != null && username.length() <= 20 ? username.toUpperCase() : "ROOT");
         mvtlSortie.setUsermo(username != null && username.length() <= 20 ? username.toUpperCase() : "ROOT");
         mvtlSortie.setEnrno(mouv.getEnrno());
-        mvtlSortie.setLilg(BigDecimal.valueOf(2));
+        mvtlSortie.setLilg(BigDecimal.valueOf(numeroLigne + 1)); // 🆕 Ligne incrémentée
         mvtlSortie.setDeldt(null);
 
-        // VTLNO
+        // 🎯 TRAÇABILITÉ CRUCIALE
         BigDecimal vtlno = getNextVtlNo();
-        BigDecimal vtlna = mvtlReference.getVtlno();
+        BigDecimal vtlna = mvtlReference.getVtlno(); // ⭐ LIEN VERS RÉCEPTION SOURCE
         mvtlSortie.setVtlno(vtlno);
         mvtlSortie.setVtlna(vtlna);
         socnoRepository.incrementVtlnoEnrg();
+
         mvtlSortie.setSens(BigDecimal.valueOf(2)); // SORTIE
         mvtlSortie.setPino(entConsommation.getPino());
         mvtlSortie.setCdvtlno(BigDecimal.ZERO);
-        mvtlSortie.setTicketres(mvtlReference.getTicketres() != null ? mvtlReference.getTicketres() : BigDecimal.ZERO);
+        mvtlSortie.setTicketres(BigDecimal.ZERO);
         mvtlSortie.setBldt(entConsommation.getPidt());
         mvtlSortie.setDeldemdt(null);
         mvtlSortie.setDelaccdt(null);
-        mvtlSortie.setDelrepdt(mvtlReference.getDelrepdt());
-        mvtlSortie.setBlasvtlno(mvtlReference.getBlasvtlno() != null ? mvtlReference.getBlasvtlno() : BigDecimal.ZERO);
+        mvtlSortie.setDelrepdt(null);
+        mvtlSortie.setBlasvtlno(BigDecimal.ZERO);
         mvtlSortie.setPerempdt(mvtlReference.getPerempdt());
-        mvtlSortie.setRcono(mvtlReference.getRcono() != null ? mvtlReference.getRcono() : BigDecimal.ZERO);
+        mvtlSortie.setRcono(BigDecimal.ZERO);
 
-        // Dates
+        // 📅 DATES
         LocalDateTime now = LocalDateTime.now();
         mvtlSortie.setUsercrdh(now);
         mvtlSortie.setUsermodh(now);
 
-        // Quantités
-        mvtlSortie.setQte(BigDecimal.valueOf(ligne.getQte()));
-        mvtlSortie.setRefqte(BigDecimal.valueOf(ligne.getQte()));
-        mvtlSortie.setStqte(BigDecimal.ZERO);
-        mvtlSortie.setResqte(mvtlReference.getResqte() != null ? mvtlReference.getResqte() : BigDecimal.ZERO);
-        mvtlSortie.setStres(mvtlReference.getStres() != null ? mvtlReference.getStres() : BigDecimal.valueOf(1));
+        // 📊 QUANTITÉS - SEULEMENT CETTE RÉCEPTION
+        mvtlSortie.setQte(qteConsommee);
+        mvtlSortie.setRefqte(qteConsommee);
+        mvtlSortie.setStqte(BigDecimal.ZERO);  // Stock = 0 pour sortie
+        mvtlSortie.setResqte(BigDecimal.ZERO);
+        mvtlSortie.setStres(BigDecimal.valueOf(1));
 
-        // Coûts
+        // 💰 COÛTS
         BigDecimal cr = mvtlReference.getCr() != null ? mvtlReference.getCr() : BigDecimal.ZERO;
         mvtlSortie.setCr(cr);
-        mvtlSortie.setCncr(mvtlReference.getCncr() != null ? mvtlReference.getCncr() : BigDecimal.ZERO);
+        mvtlSortie.setCncr(BigDecimal.ZERO);
         mvtlSortie.setCmp(cr);
-        mvtlSortie.setCrgam(mvtlReference.getCrgam() != null ? mvtlReference.getCrgam() : BigDecimal.ZERO);
+        mvtlSortie.setCrgam(BigDecimal.ZERO);
 
-        // Autres champs
+        // 🔧 AUTRES CHAMPS
         mvtlSortie.setStatus(BigDecimal.ZERO);
-        mvtlSortie.setOfrescod(mvtlReference.getOfrescod() != null ? mvtlReference.getOfrescod() : BigDecimal.ONE);
+        mvtlSortie.setOfrescod(BigDecimal.ONE);
         mvtlSortie.setPrevflg(BigDecimal.ONE);
-        mvtlSortie.setBpdetno(mvtlReference.getBpdetno() != null ? mvtlReference.getBpdetno() : BigDecimal.ZERO);
-        mvtlSortie.setTicketmress(mvtlReference.getTicketmress() != null ? mvtlReference.getTicketmress() : BigDecimal.ZERO);
-        mvtlSortie.setContratno(mvtlReference.getContratno() != null ? mvtlReference.getContratno() : BigDecimal.ZERO);
-        mvtlSortie.setMatlilg(mvtlReference.getMatlilg() != null ? mvtlReference.getMatlilg() : BigDecimal.ZERO);
-        mvtlSortie.setRmno(mvtlReference.getRmno() != null ? mvtlReference.getRmno() : BigDecimal.ZERO);
-        mvtlSortie.setActno(mvtlReference.getActno() != null ? mvtlReference.getActno() : BigDecimal.ZERO);
-        mvtlSortie.setTiersstock(mvtlReference.getTiersstock() != null ? mvtlReference.getTiersstock() : "");
-        mvtlSortie.setManutcod(mvtlReference.getManutcod() != null ? mvtlReference.getManutcod() : "");
-        mvtlSortie.setSeriefou(mvtlReference.getSeriefou() != null ? mvtlReference.getSeriefou() : "");
-        mvtlSortie.setArtind(mvtlReference.getArtind() != null ? mvtlReference.getArtind() : "");
-
-        log.info("═══════════════════════════════════════════════════════════════");
-        log.info("🟢 MVTL de sortie créé avec succès");
-        log.info("   VTLNO: {} | VTLNA: {} | REF: {} | QTE: {} | SENS: 2",
-                vtlno, vtlna, mvtlSortie.getRef(), mvtlSortie.getQte());
-        log.info("═══════════════════════════════════════════════════════════════");
-
-        // 5. Mise à jour du stock total de l'article
-        try {
-            ART article = artRepository.findByRef(ligne.getRef());
-            if (article != null) {
-                BigDecimal nouvelleQuantite = article.getSttotqte().subtract(BigDecimal.valueOf(ligne.getQte()));
-                article.setSttotqte(nouvelleQuantite);
-                artRepository.saveAndFlush(article);
-                log.info("✅ Stock total article mis à jour: {}", nouvelleQuantite);
-            }
-        } catch (Exception e) {
-            log.warn("⚠️ Erreur mise à jour stock total article: {}", e.getMessage());
-        }
-        mvtlSortie.setCdvtlno(BigDecimal.ZERO);
-        mvtlSortie.setBlasvtlno(BigDecimal.ZERO);
         mvtlSortie.setBpdetno(BigDecimal.ZERO);
-        mvtlSortie.setRcono(BigDecimal.ZERO);
-        mvtlSortie.setTiersstock(""); // pas de tiers lié
-        mvtlSortie.setLieu("");
+        mvtlSortie.setTicketmress(BigDecimal.ZERO);
+        mvtlSortie.setContratno(BigDecimal.ZERO);
+        mvtlSortie.setMatlilg(BigDecimal.ZERO);
+        mvtlSortie.setRmno(BigDecimal.ZERO);
+        mvtlSortie.setActno(BigDecimal.ZERO);
+        mvtlSortie.setTiersstock("");
+        mvtlSortie.setManutcod("");
+        mvtlSortie.setSeriefou("");
+        mvtlSortie.setArtind("");
+
+        log.info("🎯 Ligne #{} préparée - VTLNO: {}, VTLNA: {}, QTE: {}, LILG: {}",
+                numeroLigne, vtlno, vtlna, qteConsommee, mvtlSortie.getLilg());
 
         return mvtlSortie;
     }
-
     /**
      * Obtenir le prochain VTLNO
      */
@@ -1350,28 +1226,19 @@ public class DivaltoIntegrationConsommationImpService implements DivaltoIntegrat
             log.info("✅ BC mis à jour - Nouveau montant HT: {}", montantBC);
 
             // ⭐ METTRE À JOUR BL AVEC CALCULS CORRECTS ⭐
-            // ⭐ METTRE À JOUR BL AVEC CALCULS CORRECTS ⭐
             entBL.setHtmt(BigDecimal.valueOf(0.000));
             entBL.setHtpdtmt(BigDecimal.valueOf(0.000));
-
-            // ⭐ FIX 1: TTCMT avec TVA ⭐
             entBL.setTtcmt(BigDecimal.valueOf(0.000));
 
-
-// Nombre de références distinctes
-
-
-// Somme des quantités
+            // Somme des quantités
             BigDecimal totalQte = lignes.stream()
                     .map(LigneConsommation::getQte)
                     .filter(Objects::nonNull)
                     .map(BigDecimal::valueOf)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-// Affectation
+            // Affectation
             entBL.setRefnb(totalQte);
-
-
 
             // ⭐ FIX 3: REMPIETOT (calculé proportionnellement du BC) ⭐
             BigDecimal rempietot = BigDecimal.ZERO;
